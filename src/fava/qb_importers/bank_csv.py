@@ -184,8 +184,11 @@ class BankCSV(Importer):
 
     @property
     def name(self) -> str:
-        """Unique per format and account, so one bank can have many."""
-        return f"{self.key}:{self._account}"
+        """Unique per format, account and file-name filter."""
+        base = f"{self.key}:{self._account}"
+        return (
+            f"{base}:{self.filename_re.pattern}" if self.filename_re else base
+        )
 
     def account(self, filepath: str) -> str:  # noqa: ARG002
         """The account this importer books to."""

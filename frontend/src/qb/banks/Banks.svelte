@@ -1,382 +1,508 @@
+<!--
+  qb-fork: Bank & card accounts. Connect each account once (bank, ledger
+  account, optional column mapping); files dropped in Import files are then
+  recognised automatically.
+-->
 <script lang="ts">
-  import AccountInput from "../../entry-forms/AccountInput.svelte";
   import { url_for } from "../../helpers.ts";
-  import { notify } from "../../notifications.ts";
-  import type { QbBankFormat, QbBankImports } from "../api.ts";
+  import { notify, notify_err } from "../../notifications.ts";
+  import { router } from "../../router.ts";
+  import type { QbConnection, QbImportSetup } from "../api.ts";
+  import { delete_qb_connection, put_qb_import_enable } from "../api.ts";
+  import { short_date } from "../format.ts";
+  import Icon from "../Icon.svelte";
+  import AddAccount from "./AddAccount.svelte";
 
-  let { setup }: { setup: QbBankImports } = $props();
+  let { setup }: { setup: QbImportSetup } = $props();
 
-  /** One entry per format key (the first layout) for the picker. */
-  let choices = $derived(
-    setup.formats.filter(
-      (fmt, i) => setup.formats.findIndex((f) => f.key === fmt.key) === i,
+  /** The open wizard: a new account, an edit, or one for an inbox file. */
+  let wizard = $state<null | {
+    editing: { connection: QbConnection; bank: string } | null;
+    file: string | null;
+  }>(null);
+  /** Connection whose download instructions are shown. */
+  let show_help = $state("");
+  let busy = $state(false);
+
+  let waiting = $derived(setup.inbox.filter((f) => f.importers.length === 0));
+  let formats = $derived(
+    new Map(
+      setup.banks.flatMap((b) =>
+        b.formats.map((f) => [f.key, { bank: b.bank, kind: f.kind }]),
+      ),
     ),
   );
-  let label_of = $derived(
-    new Map(choices.map((f) => [f.key, `${f.bank}, ${f.kind}`])),
-  );
 
-  let key = $state("chase_checking");
-  let account = $state("");
-  let filename = $state("");
-  let payout_bank = $state("Assets:Bank:Checking");
-  let skip_stripe = $state<boolean>(false);
-
-  let chosen = $derived(choices.find((f) => f.key === key));
-  let has_stripe = $derived(
-    setup.importers.some((i) => i.key === "stripe_payouts"),
-  );
-
-  const q = (text: string) => JSON.stringify(text);
-
-  let line = $derived.by(() => {
-    if (key === "stripe_payouts") {
-      return `StripePayouts(${q(account || "Assets:Stripe")}, bank=${q(payout_bank)}),`;
-    }
-    const args = [q(key), q(account || "Assets:Bank:Checking")];
-    if (filename.trim()) {
-      args.push(`filename=${q(filename.trim())}`);
-    }
-    if (skip_stripe) {
-      args.push('skip=["STRIPE"]');
-    }
-    return `BankCSV(${args.join(", ")}),`;
-  });
-
-  let whole_file = $derived(
-    `from fava.qb_importers import BankCSV, StripePayouts
-
-CONFIG = [
-    ${line}
-]`,
-  );
-
-  async function copy(text: string) {
+  async function enable() {
+    busy = true;
     try {
-      await navigator.clipboard.writeText(text);
-      notify("Copied.");
-    } catch {
-      notify("Couldn't copy; select the text instead.", "warning");
+      notify(await put_qb_import_enable());
+      router.reload();
+    } catch (error) {
+      notify_err(error);
+    } finally {
+      busy = false;
     }
   }
 
-  const recognised_by = (fmt: QbBankFormat) =>
-    fmt.columns.length
-      ? fmt.columns.join(", ")
-      : "No header row: date, amount, *, check, description";
+  async function remove(connection: QbConnection) {
+    const label = connection.name || connection.account;
+    if (
+      !window.confirm(
+        `Disconnect ${label}? Transactions already imported stay in your books.`,
+      )
+    ) {
+      return;
+    }
+    try {
+      await delete_qb_connection(connection.id);
+      notify(`Disconnected ${label}.`);
+      router.reload();
+    } catch (error) {
+      notify_err(error);
+    }
+  }
+
+  function saved(name: string) {
+    wizard = null;
+    notify(`Saved. Files from ${name} will now be recognised in Import files.`);
+    router.reload();
+  }
+
+  const initials = (text: string) =>
+    text
+      .split(/\s+/)
+      .map((w) => w[0] ?? "")
+      .join("")
+      .slice(0, 2)
+      .toUpperCase();
 </script>
 
-<div class="grid">
-  <section class="qb-card">
-    <h3>Your bank imports</h3>
-    {#each setup.errors as error (error)}
-      <p class="error">{error}</p>
-    {/each}
-    {#if setup.config_file}
-      {#if setup.importers.length}
-        <table>
-          <thead>
-            <tr><th>Account</th><th>Format</th></tr>
-          </thead>
-          <tbody>
-            {#each setup.importers as importer (importer.name)}
-              <tr>
-                <td>{importer.account || "—"}</td>
-                <td>
-                  {label_of.get(importer.key) ??
-                    (importer.key === "stripe_payouts"
-                      ? "Stripe payouts"
-                      : importer.name)}
-                </td>
-              </tr>
-            {/each}
-          </tbody>
-        </table>
-      {:else if !setup.errors.length}
-        <p class="muted">The import config has no importers yet.</p>
-      {/if}
-      <dl>
-        <dt>Config file</dt>
-        <dd><code>{setup.config_file}</code></dd>
-        <dt>Drop downloads in</dt>
-        <dd>
-          {#each setup.import_dirs as dir (dir)}<code>{dir}</code><br />{:else}
-            <span class="muted">No import-dirs option set.</span>
-          {/each}
-        </dd>
-      </dl>
-      <a class="button" href={$url_for("import/")}>Import files →</a>
-    {:else}
-      <p>
-        No import config yet. Create <code>importers/config.py</code> with the
-        snippet on the right, then add to <code>main.beancount</code>:
-      </p>
-      <pre>2026-01-01 custom "fava-option" "import-config" "importers/config.py"
-2026-01-01 custom "fava-option" "import-dirs" "inbox"</pre>
-    {/if}
-  </section>
-
-  <section class="qb-card">
-    <h3>Add a bank account</h3>
-    <div class="form">
-      <label>
-        <span>Bank and account type</span>
-        <select bind:value={key}>
-          {#each choices as fmt (fmt.key)}
-            <option value={fmt.key}>
-              {fmt.bank}, {fmt.kind}{fmt.confidence === "unverified"
-                ? " (unverified)"
-                : ""}
-            </option>
-          {/each}
-        </select>
-      </label>
-      <label>
-        <span
-          >{key === "stripe_payouts"
-            ? "Stripe balance account"
-            : "Ledger account"}</span
-        >
-        <AccountInput bind:value={account} />
-      </label>
-      {#if key === "stripe_payouts"}
-        <label>
-          <span>Payouts land in</span>
-          <AccountInput bind:value={payout_bank} />
-        </label>
-      {:else}
-        <label>
-          <span>File name contains (optional, e.g. last 4 digits)</span>
-          <input type="text" bind:value={filename} placeholder="1234" />
-        </label>
-        <label class="check">
-          <input type="checkbox" bind:checked={skip_stripe} />
-          <span class="check-text">
-            Leave out Stripe payouts (the Stripe importer books them){#if has_stripe}<em
-                >. Recommended: you import Stripe.</em
-              >{/if}
-          </span>
-        </label>
-      {/if}
-    </div>
-    {#if chosen}
-      <p class="muted">Download: {chosen.download}</p>
-    {/if}
-    <p class="label">
-      Add this line to <code>CONFIG</code>
-      <button type="button" class="small" onclick={async () => copy(line)}
-        >Copy</button
-      >
-    </p>
-    <pre>{line}</pre>
-    <details>
-      <summary>Whole file, for a new config</summary>
-      <pre>{whole_file}</pre>
-      <button
-        type="button"
-        class="small"
-        onclick={async () => copy(whole_file)}
-      >
-        Copy
-      </button>
-    </details>
-  </section>
+<div class="page-head">
+  <p class="muted">
+    Tell Favabooks which file each account's statements come in. Once saved,
+    files you drop in <a href={$url_for("import/")}>Import files</a> are recognised
+    automatically.
+  </p>
+  {#if setup.status === "managed"}
+    <button
+      type="button"
+      class="qb-primary add"
+      onclick={() => (wizard = { editing: null, file: null })}
+    >
+      <Icon name="plus" size={16} /> Add account
+    </button>
+  {/if}
 </div>
 
-<section class="qb-card formats">
-  <h3>Supported formats</h3>
-  <p class="muted">
-    Files are recognised by their header row, not their name. Every import lands
-    in <a href={$url_for("qb_review/")}>For review</a>. A statement balance
-    check is added when the file has a running balance, so add an opening
-    balance before the first import. Unverified formats have no published
-    sample: check the first import, and tell apart look-alike layouts
-    (Amex/Relay, Bluevine/Novo) with the file-name option.
-  </p>
-  <div class="scroll">
-    <table>
-      <thead>
-        <tr>
-          <th>Bank</th>
-          <th>Account type</th>
-          <th>Key</th>
-          <th>Download in online banking</th>
-          <th>Recognised by columns</th>
-          <th>Amounts</th>
-          <th>Balance</th>
-        </tr>
-      </thead>
-      <tbody>
-        {#each setup.formats as fmt, i (`${fmt.key}-${i.toString()}`)}
-          <tr>
-            <td>
-              <strong>{fmt.bank}</strong>
-              {#if fmt.confidence === "unverified"}
-                <span class="badge" title="No published sample header"
-                  >unverified</span
-                >
-              {/if}
-            </td>
-            <td>{fmt.kind}</td>
-            <td><code>{fmt.key}</code></td>
-            <td>{fmt.download}</td>
-            <td class="cols">{recognised_by(fmt)}</td>
-            <td>{fmt.amounts}</td>
-            <td class="center">{fmt.has_balance ? "✓" : ""}</td>
-          </tr>
-        {/each}
-      </tbody>
-    </table>
+{#each setup.errors as error (error)}
+  <p class="qb-card error">{error}</p>
+{/each}
+
+{#if setup.status !== "managed"}
+  <section class="qb-card off">
+    <span class="big-icon"><Icon name="landmark" size={28} /></span>
+    <div>
+      <h2>Turn on bank &amp; card imports</h2>
+      {#if setup.status === "custom"}
+        <p>
+          This ledger has its own import config (<code>{setup.config_file}</code
+          >). Turning this on adds one line to it so accounts you connect here
+          are loaded as well; your existing importers keep working.
+        </p>
+      {:else}
+        <p>
+          Favabooks will create an <code>importers/</code> folder for your
+          settings and an <code>inbox/</code> folder for statement files next to your
+          ledger, and add two options to it.
+        </p>
+      {/if}
+      <button type="button" class="qb-primary" disabled={busy} onclick={enable}>
+        Turn on
+      </button>
+    </div>
+  </section>
+{:else if setup.connections.length === 0}
+  <section class="qb-card empty">
+    <span class="big-icon"><Icon name="landmark" size={28} /></span>
+    <h2>No accounts yet</h2>
+    <p class="muted">
+      Add your first bank or credit card account. Have a statement file already?
+      Start with it and Favabooks recognises the bank.
+    </p>
+    <button
+      type="button"
+      class="qb-primary"
+      onclick={() => (wizard = { editing: null, file: null })}
+    >
+      <Icon name="plus" size={16} /> Add account
+    </button>
+  </section>
+{:else}
+  <div class="cards">
+    {#each setup.connections as view (view.connection.id)}
+      {@const c = view.connection}
+      <div class="qb-card account">
+        <div class="top">
+          <span class="avatar">{initials(view.bank)}</span>
+          <div class="title">
+            <strong>{c.name || `${view.bank} ${view.kind_label}`}</strong>
+            <span class="muted">{view.bank} · {view.kind_label}</span>
+          </div>
+        </div>
+        <p class="posts">Posts to <code>{c.account}</code></p>
+        <div class="chips">
+          <span class="chip"
+            >{c.kind === "custom"
+              ? "Custom column mapping"
+              : c.kind === "stripe"
+                ? "Stripe payout report"
+                : `${view.bank} CSV (built-in)`}</span
+          >
+          {#if c.filename}<span class="chip"
+              >File name contains {c.filename}</span
+            >{/if}
+          {#if c.skip_stripe}<span class="chip">Leaves out Stripe payouts</span
+            >{/if}
+          {#if c.kind === "stripe"}<span class="chip"
+              >Payouts to {c.payout_account}</span
+            >{/if}
+        </div>
+        <p class="meta muted">
+          {view.last_date
+            ? `Last transaction ${short_date(view.last_date)}`
+            : "No transactions yet"}
+          · {view.documents} statement{view.documents === 1 ? "" : "s"} filed
+        </p>
+        {#if show_help === c.id}
+          <p class="help">
+            <Icon name="download" size={15} />
+            {view.download ||
+              "In online banking, look for Download or Export and choose CSV."}
+          </p>
+        {/if}
+        <div class="actions">
+          <a class="button qb-primary small" href={$url_for("import/")}
+            >Import file</a
+          >
+          <button
+            type="button"
+            class="link"
+            onclick={() => (show_help = show_help === c.id ? "" : c.id)}
+          >
+            How to download
+          </button>
+          <button
+            type="button"
+            class="link"
+            onclick={() =>
+              (wizard = {
+                editing: { connection: c, bank: view.bank },
+                file: null,
+              })}
+          >
+            Edit
+          </button>
+          <button
+            type="button"
+            class="link danger"
+            onclick={async () => remove(c)}>Disconnect</button
+          >
+        </div>
+      </div>
+    {/each}
   </div>
-</section>
+{/if}
+
+{#if setup.status === "managed" && waiting.length}
+  <section class="qb-card waiting">
+    <h3>Files in Import files that no account recognises</h3>
+    <ul>
+      {#each waiting as f (f.filename)}
+        {@const key = f.detected[0]}
+        {@const guess = key === undefined ? undefined : formats.get(key)}
+        <li>
+          <Icon name="file-spreadsheet" size={16} />
+          <span class="file">{f.basename}</span>
+          <span class="muted"
+            >{guess
+              ? `Looks like ${guess.bank}, ${guess.kind}`
+              : f.header.length
+                ? "Unknown layout"
+                : "Not a CSV statement"}</span
+          >
+          {#if f.header.length || guess}
+            <button
+              type="button"
+              class="qb-secondary small"
+              onclick={() => (wizard = { editing: null, file: f.filename })}
+            >
+              Set up account for this file
+            </button>
+          {/if}
+        </li>
+      {/each}
+    </ul>
+  </section>
+{/if}
+
+<details class="advanced">
+  <summary>Advanced: supported banks and settings file</summary>
+  {#if setup.config_file}
+    <p class="muted">
+      Settings are saved in <code>favabooks-import.json</code> next to
+      <code>{setup.config_file}</code>. Files are read from {#each setup.import_dirs as dir (dir)}<code
+          >{dir}</code
+        >
+      {/each}.
+    </p>
+  {/if}
+  <table>
+    <thead
+      ><tr
+        ><th>Bank</th><th>Account types</th><th>Download in online banking</th
+        ></tr
+      ></thead
+    >
+    <tbody>
+      {#each setup.banks as b (b.bank)}
+        <tr>
+          <td><strong>{b.bank}</strong></td>
+          <td
+            >{#each b.formats as f (f.key)}<span class="chip"
+                >{f.kind}{f.confidence === "unverified"
+                  ? " (unverified)"
+                  : ""}</span
+              >
+            {/each}</td
+          >
+          <td class="muted">{b.formats[0]?.download ?? ""}</td>
+        </tr>
+      {/each}
+    </tbody>
+  </table>
+</details>
+
+{#if wizard}
+  <AddAccount
+    {setup}
+    editing={wizard.editing}
+    file={wizard.file}
+    onclose={() => (wizard = null)}
+    onsaved={saved}
+  />
+{/if}
 
 <style>
-  .grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(min(100%, 26rem), 1fr));
-    gap: 1rem;
-    align-items: start;
+  .page-head {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem 1rem;
+    align-items: center;
+    justify-content: space-between;
     margin-bottom: 1rem;
   }
 
-  h3 {
-    margin: 0 0 0.75rem;
-    font-size: 1em;
-    font-weight: 500;
+  .page-head p {
+    max-width: 46rem;
+    margin: 0;
   }
 
-  .muted,
-  dt {
-    color: var(--text-color-lightest);
+  .muted {
+    color: var(--qb-muted);
+  }
+
+  .add,
+  .empty .qb-primary {
+    display: inline-flex;
+    gap: 0.35rem;
+    align-items: center;
   }
 
   .error {
     color: var(--error);
   }
 
-  table {
-    --table-background-even: transparent;
-
-    width: 100%;
-    margin: 0 0 0.75rem;
-    border: none;
-  }
-
-  th,
-  td {
-    padding: 0.35em 0.5em;
-    vertical-align: top;
-    border: none;
-    border-bottom: 1px solid var(--border);
-  }
-
-  th {
-    font-weight: 500;
-    color: var(--text-color-lighter);
-    text-align: left;
-  }
-
-  dl {
-    display: grid;
-    grid-template-columns: max-content 1fr;
-    gap: 0.25rem 0.75rem;
-    margin: 0 0 0.9rem;
-    font-size: 0.9em;
-  }
-
-  dd {
-    margin: 0;
-    overflow-wrap: anywhere;
-  }
-
-  .form {
-    display: grid;
-    gap: 0.6rem;
-  }
-
-  label {
+  .off,
+  .empty {
     display: flex;
+    gap: 1.2rem;
+    align-items: flex-start;
+    margin-bottom: 1rem;
+  }
+
+  .empty {
     flex-direction: column;
-    gap: 0.25rem;
-  }
-
-  label span {
-    font-size: 0.85em;
-    color: var(--text-color-lighter);
-  }
-
-  label.check {
-    flex-direction: row;
-    gap: 0.4rem;
     align-items: center;
-    font-size: 0.9em;
-  }
-
-  label .check-text {
-    font-size: 1em;
-    color: inherit;
-  }
-
-  .check-text em {
-    font-style: normal;
-    color: var(--text-color-lightest);
-  }
-
-  .label {
-    display: flex;
-    gap: 0.5rem;
-    align-items: center;
-    margin: 0.9rem 0 0.3rem;
-    font-weight: 500;
-  }
-
-  pre {
-    padding: 0.6em 0.8em;
-    margin: 0 0 0.5rem;
-    overflow-x: auto;
-    font-size: 0.85em;
-    background: var(--code-background);
-    border-radius: 4px;
-  }
-
-  button.small {
-    padding: 0.1em 0.7em;
-    font-size: 0.85em;
-  }
-
-  a.button {
-    display: inline-block;
-    padding: 0.3em 1em;
-    color: var(--button-color);
-    background: var(--button-background);
-    border-radius: 4px;
-  }
-
-  .scroll {
-    overflow-x: auto;
-  }
-
-  .formats td {
-    font-size: 0.9em;
-    white-space: normal;
-  }
-
-  .cols {
-    max-width: 18rem;
-    color: var(--text-color-lighter);
-  }
-
-  .center {
+    padding: 2.5rem 1rem;
     text-align: center;
   }
 
-  .badge {
-    display: inline-block;
-    padding: 0 0.4em;
-    margin-left: 0.3em;
-    font-size: 0.75em;
-    color: var(--text-color);
-    background: color-mix(in srgb, var(--warning) 45%, transparent);
-    border-radius: 3px;
+  .off h2,
+  .empty h2 {
+    margin: 0 0 0.4rem;
+    font-size: 1.15rem;
+  }
+
+  .big-icon {
+    display: grid;
+    flex: none;
+    place-items: center;
+    width: 52px;
+    height: 52px;
+    color: var(--qb-accent);
+    background: var(--qb-accent-soft);
+    border-radius: 50%;
+  }
+
+  .cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 22rem), 1fr));
+    gap: 1rem;
+    margin-bottom: 1rem;
+  }
+
+  .account {
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+  }
+
+  .top {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+  }
+
+  .avatar {
+    display: grid;
+    flex: none;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    font-weight: 700;
+    color: var(--qb-accent);
+    background: var(--qb-accent-soft);
+    border-radius: 50%;
+  }
+
+  .title {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .posts,
+  .meta {
+    margin: 0;
+    font-size: 0.9rem;
+  }
+
+  .chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+  }
+
+  .chip {
+    padding: 0.1rem 0.6rem;
+    font-size: 0.78rem;
+    color: var(--text-color-lighter);
+    background: var(--background-darker);
+    border-radius: 999px;
+  }
+
+  .help {
+    display: flex;
+    gap: 0.4rem;
+    align-items: flex-start;
+    padding: 0.5rem 0.7rem;
+    margin: 0;
+    font-size: 0.9rem;
+    background: var(--qb-accent-soft);
+    border-radius: 8px;
+  }
+
+  .actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem 1rem;
+    align-items: center;
+    padding-top: 0.6rem;
+    margin-top: auto;
+    border-top: 1px solid var(--border-lighter);
+  }
+
+  .small {
+    padding: 0.3em 1em;
+    font-size: 0.88em;
+  }
+
+  a.button {
+    color: var(--button-color);
+    background: var(--button-background);
+  }
+
+  .link {
+    padding: 0;
+    font-weight: 600;
+    color: var(--qb-accent);
+    background: none;
+  }
+
+  .link.danger {
+    color: var(--error);
+  }
+
+  .waiting {
+    margin-bottom: 1rem;
+  }
+
+  .waiting h3 {
+    margin: 0 0 0.6rem;
+    font-size: 1rem;
+  }
+
+  .waiting ul {
+    padding: 0;
+    margin: 0;
+    list-style: none;
+  }
+
+  .waiting li {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 0.8rem;
+    align-items: center;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid var(--border-lighter);
+  }
+
+  .file {
+    font-weight: 600;
+  }
+
+  .waiting li button {
+    margin-left: auto;
+  }
+
+  .advanced {
+    margin-top: 1.5rem;
+  }
+
+  .advanced summary {
+    font-weight: 600;
+    color: var(--qb-muted);
+    cursor: pointer;
+  }
+
+  .advanced table {
+    --table-background-even: transparent;
+
+    width: 100%;
+    margin-top: 0.6rem;
+  }
+
+  .advanced td {
+    white-space: normal;
   }
 </style>

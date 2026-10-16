@@ -108,7 +108,7 @@
       <a href={$url_for("import/")}><Icon name="upload" />Import bank file</a>
       <a href={$url_for("qb_review/")}><Icon name="inbox" />Review imports</a>
       <a href={$url_for("qb_banks/")}
-        ><Icon name="landmark" />Connect a bank format</a
+        ><Icon name="landmark" />Add a bank or card account</a
       >
       <a href={$url_for("documents/")}><Icon name="folder" />Upload a receipt</a
       >
@@ -145,7 +145,7 @@
         <Icon name="download" size={15} />
       </a>
     </QbLink>
-    <QbLink report="qb_banks" name="Bank formats" />
+    <QbLink report="qb_banks" name="Bank & card accounts" />
     <QbLink report="qb_reconcile" name="Reconcile" soon />
   </ul>
 {/if}

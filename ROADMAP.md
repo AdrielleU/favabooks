@@ -18,7 +18,10 @@ and bug reports are welcome as GitHub issues.
 - [x] Bank and card CSV importers (Chase, Bank of America, Wells Fargo, Capital
   One, Citi, U.S. Bank, Amex, Discover, Mercury, plus unverified Bluevine,
   Relay, Novo and PNC) and a Stripe payout importer
-- [x] Bank formats page with a config snippet builder
+- [x] Bank & card accounts page: connect accounts in a wizard (bank, ledger
+  account, column mapping with live preview for other banks); saved
+  automatically, no config editing
+- [x] Imported files are filed away automatically after Save
 - [x] Expense spreadsheet import with column mapping and receipt filing (like
   QuickBooks' file upload and receipts)
 - [x] Year menus and the dashboard follow the years the books have data for

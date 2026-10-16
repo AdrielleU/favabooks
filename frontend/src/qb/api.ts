@@ -19,6 +19,7 @@ import {
   decimal,
   number,
   object,
+  optional,
   string,
 } from "../lib/validation.ts";
 import { base_url } from "../stores/index.ts";
@@ -66,6 +67,25 @@ async function qb_put<R>(
     headers: { "Content-Type": "application/json" },
   });
   // Record our own save so Fava doesn't announce it as an external change.
+  if (typeof json.mtime === "string") {
+    set_mtime(json.mtime);
+  }
+  return validator(json.data).unwrap(QbInvalidResponseError);
+}
+
+async function qb_delete<R>(
+  endpoint: `qb_${string}`,
+  params: Record<string, string>,
+  validator: Validator<R>,
+): Promise<R> {
+  const url = new URL(
+    `${store_get(base_url)}api/${endpoint}`,
+    window.location.href,
+  );
+  for (const [key, value] of Object.entries(params)) {
+    url.searchParams.set(key, value);
+  }
+  const json = await fetch_json(url, { method: "DELETE" });
   if (typeof json.mtime === "string") {
     set_mtime(json.mtime);
   }
@@ -257,3 +277,108 @@ export type QbBankImports = ValidationT<typeof qb_bank_imports>;
 /** Supported bank formats and this ledger's import setup. */
 export const get_qb_bank_formats = async (): Promise<QbBankImports> =>
   qb_get("qb_bank_formats", {}, qb_bank_imports);
+
+// --- Bank & card accounts (connections) -------------------------------------
+
+const qb_layout = object({
+  date: string,
+  description: string,
+  amount: string,
+  debit: string,
+  credit: string,
+  negate: boolean,
+  date_format: string,
+  balance: string,
+});
+
+const qb_connection = object({
+  id: string,
+  kind: string,
+  account: string,
+  name: string,
+  format: string,
+  layout: optional(qb_layout),
+  filename: string,
+  skip_stripe: boolean,
+  payout_account: string,
+  currency: string,
+});
+
+const qb_import_setup = object({
+  status: string,
+  config_file: string,
+  import_dirs: array(string),
+  errors: array(string),
+  connections: array(
+    object({
+      connection: qb_connection,
+      bank: string,
+      kind_label: string,
+      download: string,
+      last_date: optional(date),
+      documents: number,
+    }),
+  ),
+  banks: array(
+    object({
+      bank: string,
+      formats: array(
+        object({
+          key: string,
+          kind: string,
+          download: string,
+          confidence: string,
+        }),
+      ),
+    }),
+  ),
+  inbox: array(
+    object({
+      filename: string,
+      basename: string,
+      importers: array(string),
+      detected: array(string),
+      header: array(string),
+      sample: array(array(string)),
+    }),
+  ),
+});
+
+const qb_preview = object({
+  matches: boolean,
+  rows: array(
+    object({ date, payee: string, amount: decimal, currency: string }),
+  ),
+  total: number,
+  parsed: number,
+  problem: string,
+});
+
+export type QbLayout = ValidationT<typeof qb_layout>;
+export type QbConnection = ValidationT<typeof qb_connection>;
+export type QbImportSetup = ValidationT<typeof qb_import_setup>;
+export type QbPreview = ValidationT<typeof qb_preview>;
+
+/** Saved connections, supported banks and inbox files. */
+export const get_qb_import_setup = async (): Promise<QbImportSetup> =>
+  qb_get("qb_import_setup", {}, qb_import_setup);
+
+/** Save a connection (new when `id` is ""); returns its id. */
+export const put_qb_connection = async (
+  connection: Partial<QbConnection>,
+): Promise<string> => qb_put("qb_connection", { connection }, string);
+
+/** Remove a connection. */
+export const delete_qb_connection = async (id: string): Promise<string> =>
+  qb_delete("qb_connection", { connection_id: id }, string);
+
+/** Turn on Bank connections for this ledger. */
+export const put_qb_import_enable = async (): Promise<string> =>
+  qb_put("qb_import_enable", {}, string);
+
+/** What a draft connection makes of a file in the inbox. */
+export const put_qb_connection_preview = async (
+  filename: string,
+  connection: Partial<QbConnection>,
+): Promise<QbPreview> =>
+  qb_put("qb_connection_preview", { filename, connection }, qb_preview);
