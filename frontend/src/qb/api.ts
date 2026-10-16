@@ -382,3 +382,57 @@ export const put_qb_connection_preview = async (
   connection: Partial<QbConnection>,
 ): Promise<QbPreview> =>
   qb_put("qb_connection_preview", { filename, connection }, qb_preview);
+
+// --- Account overview and Reconcile -----------------------------------------
+
+const qb_account_overview = object({
+  account: string,
+  balance: decimal,
+  currency: string,
+  transactions: number,
+  last_date: optional(date),
+});
+
+const qb_reconcile = object({
+  account: string,
+  currency: string,
+  beginning_balance: decimal,
+  rows: array(
+    object({
+      entry_hash: string,
+      date,
+      payee: string,
+      narration: string,
+      amount: decimal,
+    }),
+  ),
+  books_balance: decimal,
+  history: array(object({ date, comment: string })),
+});
+
+export type QbAccountOverview = ValidationT<typeof qb_account_overview>;
+export type QbReconcile = ValidationT<typeof qb_reconcile>;
+
+/** Bank and card accounts with balance and activity. */
+export const get_qb_accounts_overview = async (): Promise<
+  QbAccountOverview[]
+> => qb_get("qb_accounts_overview", {}, array(qb_account_overview));
+
+/** Reconciliation state for an account up to a statement date. */
+export const get_qb_reconcile = async (params: {
+  account_name: string;
+  end_date: string;
+}): Promise<QbReconcile> => qb_get("qb_reconcile", params, qb_reconcile);
+
+/** Finish a reconciliation (the difference must be zero). */
+export const put_qb_reconcile = async (body: {
+  account_name: string;
+  end_date: string;
+  ending_balance: string;
+  entry_hashes: string[];
+}): Promise<{ reconciled: number; balance_assertion: boolean }> =>
+  qb_put(
+    "qb_reconcile",
+    body,
+    object({ reconciled: number, balance_assertion: boolean }),
+  );

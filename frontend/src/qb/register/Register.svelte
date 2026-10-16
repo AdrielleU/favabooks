@@ -1,37 +1,46 @@
 <script lang="ts">
   import AccountInput from "../../entry-forms/AccountInput.svelte";
+  import { url_for } from "../../helpers.ts";
   import { notify, notify_err } from "../../notifications.ts";
   import { router } from "../../router.ts";
   import { accounts_set } from "../../stores/index.ts";
-  import type { QbRegister, QbRegisterRow } from "../api.ts";
+  import type { QbAccountOverview, QbRegister, QbRegisterRow } from "../api.ts";
   import { put_qb_reclassify } from "../api.ts";
   import { money, short_date } from "../format.ts";
 
   let {
     account_name,
     register,
-  }: { account_name: string; register: QbRegister | null } = $props();
+    accounts,
+  }: {
+    account_name: string;
+    register: QbRegister | null;
+    accounts: QbAccountOverview[];
+  } = $props();
 
-  let picked = $state("");
   /** Category edits per row key; a Save button shows when one differs. */
-  let edits = $state<Record<string, string>>({});
+  /** Reset whenever a register loads. */
+  let edits: Record<string, string> = $derived(register ? {} : {});
   let busy = $state(false);
-
-  $effect.pre(() => {
-    picked = account_name;
-    edits = {};
-  });
 
   const key = (row: QbRegisterRow, i: number) =>
     `${row.entry_hash}-${i.toString()}`;
   const original = (row: QbRegisterRow) => row.categories[0] ?? "";
 
-  function open(event: SubmitEvent) {
-    event.preventDefault();
+  function open(account: string) {
     const url = new URL(window.location.href);
-    url.searchParams.set("account_name", picked.trim());
+    url.searchParams.set("account_name", account);
     router.navigate(url);
   }
+
+  const leaf = (account: string) => account.split(":").slice(1).join(":");
+  let overview = $derived(accounts.find((a) => a.account === account_name));
+  let options = $derived(
+    accounts.some((a) => a.account === account_name) || !account_name
+      ? accounts.map((a) => a.account)
+      : [account_name, ...accounts.map((a) => a.account)],
+  );
+  let is_card = $derived(account_name.startsWith("Liabilities"));
 
   async function save(row: QbRegisterRow, to: string) {
     if (!$accounts_set.has(to)) {
@@ -71,23 +80,56 @@
   let ending = $derived(register?.rows[0] ?? null);
 </script>
 
-<form class="picker" onsubmit={open}>
-  <span class="input"><AccountInput bind:value={picked} required /></span>
-  <button type="submit" class="qb-primary" disabled={!picked}>
-    Open register
-  </button>
-  {#if register}
-    <span class="hint">Dates follow the Time filter in the header.</span>
+{#if register}
+  <div class="bar">
+    <label class="switch">
+      <span>Account</span>
+      <select
+        value={account_name}
+        onchange={(e) => {
+          open(e.currentTarget.value);
+        }}
+      >
+        {#each options as option (option)}
+          <option value={option}>{option}</option>
+        {/each}
+      </select>
+    </label>
     {#if ending}
-      <span class="ending">
-        <span>Ending balance</span>
-        <strong class:negative={ending.balance < 0}>
-          {money(ending.balance, ending.currency)}
+      <div class="stat">
+        <span>{is_card ? "You owe" : "Balance"}</span>
+        <strong class:negative={!is_card && ending.balance < 0}>
+          {money(is_card ? -ending.balance : ending.balance, ending.currency)}
         </strong>
-      </span>
+      </div>
     {/if}
-  {/if}
-</form>
+    {#if overview}
+      <div class="stat">
+        <span>Transactions</span>
+        <strong>{overview.transactions}</strong>
+      </div>
+    {/if}
+    <a
+      class="button qb-secondary"
+      href={$url_for("qb_reconcile/", { account_name })}
+    >
+      Reconcile
+    </a>
+  </div>
+  <p class="explain">
+    Every transaction in this account, newest first, like a checkbook.
+    {#if is_card}
+      <strong>Charge</strong> adds to what you owe and <strong>Payment</strong>
+      reduces it; in the Balance column, what you owe shows as a negative number.
+    {:else}
+      <strong>{columns.down}</strong> lowers the balance and
+      <strong>{columns.up}</strong> raises it.
+    {/if}
+    <strong>Balance</strong> is the account's balance after each row. Click a payee
+    to see or edit the transaction; change a category and press Save to move it. The
+    Time filter in the header limits the dates.
+  </p>
+{/if}
 
 {#if register}
   <div class="qb-card table-card">
@@ -128,7 +170,7 @@
                     bind:value={
                       () => edited,
                       (value: string) => {
-                        edits[k] = value;
+                        edits = { ...edits, [k]: value };
                       }
                     }
                   />
@@ -177,22 +219,41 @@
     </table>
   </div>
 {:else}
-  <p class="hint">Pick an account to open its register.</p>
+  <p class="explain">
+    A register lists every transaction in one bank or card account with its
+    running balance, like a checkbook. Choose an account:
+  </p>
+  {#if accounts.length}
+    <div class="choose">
+      {#each accounts as a (a.account)}
+        <a
+          class="qb-card acct"
+          href={$url_for("qb_register/", { account_name: a.account })}
+        >
+          <span class="acct-name">{leaf(a.account)}</span>
+          <span class="muted">{a.account}</span>
+          {#if a.account.startsWith("Liabilities")}
+            <strong>{money(-a.balance, a.currency)}</strong>
+            <span class="muted">you owe</span>
+          {:else}
+            <strong class:negative={a.balance < 0}>
+              {money(a.balance, a.currency)}
+            </strong>
+          {/if}
+          <span class="muted">
+            {a.transactions} transactions{a.last_date
+              ? ` · last ${short_date(a.last_date)}`
+              : ""}
+          </span>
+        </a>
+      {/each}
+    </div>
+  {:else}
+    <p class="hint">No bank or card accounts with transactions yet.</p>
+  {/if}
 {/if}
 
 <style>
-  .picker {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem 0.75rem;
-    align-items: center;
-    margin-bottom: 1rem;
-  }
-
-  .picker .input {
-    min-width: min(100%, 22rem);
-  }
-
   .hint,
   .memo,
   .split,
@@ -281,24 +342,6 @@
     border-color: var(--border-darker);
   }
 
-  .ending {
-    display: flex;
-    flex-direction: column;
-    margin-left: auto;
-    text-align: right;
-  }
-
-  .ending span {
-    font-size: 0.8rem;
-    color: var(--qb-muted);
-  }
-
-  .ending strong {
-    font-size: 1.4rem;
-    font-weight: 650;
-    font-variant-numeric: tabular-nums;
-  }
-
   .edit {
     display: flex;
     gap: 0.4rem;
@@ -308,5 +351,75 @@
   .opening td {
     font-style: italic;
     background: var(--background-darker);
+  }
+
+  .bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem 2rem;
+    align-items: flex-end;
+    margin-bottom: 0.6rem;
+  }
+
+  .switch,
+  .stat {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+  }
+
+  .switch span,
+  .stat span {
+    font-size: 0.8rem;
+    color: var(--qb-muted);
+  }
+
+  .stat strong {
+    font-size: 1.35rem;
+    font-weight: 650;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .bar .button {
+    margin-left: auto;
+  }
+
+  .explain {
+    max-width: 60rem;
+    margin: 0 0 1rem;
+    color: var(--text-color-lighter);
+  }
+
+  .choose {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 16rem), 1fr));
+    gap: 1rem;
+  }
+
+  .acct {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    color: inherit;
+  }
+
+  .acct:hover {
+    border-color: var(--qb-accent);
+  }
+
+  .acct-name {
+    font-weight: 600;
+  }
+
+  .acct strong {
+    margin-top: 0.4rem;
+    font-size: 1.4rem;
+    font-weight: 650;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .muted {
+    font-size: 0.85rem;
+    color: var(--qb-muted);
   }
 </style>

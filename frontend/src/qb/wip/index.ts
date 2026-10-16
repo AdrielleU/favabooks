@@ -26,11 +26,6 @@ export function wip_route(
 export const wip_routes = [
   // Phase 2 and 3.
   wip_route(
-    "qb_reconcile",
-    "Reconcile",
-    "Tick postings against a statement and write the balance assertion.",
-  ),
-  wip_route(
     "qb_close_books",
     "Close books",
     "Lock a period so entries on or before the date can't be edited.",

@@ -146,7 +146,7 @@
       </a>
     </QbLink>
     <QbLink report="qb_banks" name="Bank & card accounts" />
-    <QbLink report="qb_reconcile" name="Reconcile" soon />
+    <QbLink report="qb_reconcile" name="Reconcile" />
   </ul>
 {/if}
 
