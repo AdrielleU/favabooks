@@ -332,6 +332,18 @@ export const ICONS = {
     ["path", { d: "M9 22v-3a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v3" }],
     ["rect", { x: "4", y: "2", width: "16", height: "20", rx: "2" }],
   ],
+  paperclip: [
+    [
+      "path",
+      {
+        d: "m16 6-8.414 8.586a2 2 0 0 0 2.829 2.829l8.414-8.586a4 4 0 1 0-5.657-5.657l-8.379 8.551a6 6 0 1 0 8.485 8.485l8.379-8.551",
+      },
+    ],
+  ],
+  "arrow-right": [
+    ["path", { d: "M5 12h14" }],
+    ["path", { d: "m12 5 7 7-7 7" }],
+  ],
 } as const satisfies Record<string, IconNode>;
 
 export type IconName = keyof typeof ICONS;

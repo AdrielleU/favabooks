@@ -90,6 +90,7 @@ CLIENT_SIDE_REPORTS = [
     "qb_register",
     "qb_reclassify",
     "qb_reconcile",
+    "qb_transactions",
     "qb_close_books",
     "qb_customers",
     "qb_invoices",

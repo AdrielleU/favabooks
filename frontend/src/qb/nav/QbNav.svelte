@@ -30,7 +30,7 @@
   /** Pages in each group, to keep the current page's group open. */
   const GROUP_PAGES: Record<string, string[]> = {
     banking: ["qb_review", "import", "qb_banks", "qb_reconcile"],
-    transactions: ["journal", "qb_register", "qb_reclassify"],
+    transactions: ["qb_transactions", "qb_register", "qb_reclassify"],
     sales: ["qb_customers", "qb_invoices"],
     expenses: ["qb_vendors", "qb_bills"],
     reports: [
@@ -41,7 +41,7 @@
       "qb_exports",
     ],
     accounting: ["account", "documents", "editor"],
-    advanced: ["holdings", "commodities", "events", "statistics"],
+    advanced: ["journal", "holdings", "commodities", "events", "statistics"],
     settings: ["options", "errors", "qb_close_books", "help"],
   };
   const STORAGE_KEY = "favabooks-nav-open";
@@ -161,7 +161,7 @@
 />
 {#if is_open("transactions")}
   <ul class="navigation">
-    <QbLink report="journal" name="All transactions" key="g j" />
+    <QbLink report="qb_transactions" name="All transactions" />
     <QbLink report="qb_register" name="Register" />
     <QbLink report="qb_reclassify" name="Bulk reclassify" />
   </ul>
@@ -257,6 +257,7 @@
 />
 {#if is_open("advanced")}
   <ul class="navigation">
+    <QbLink report="journal" name="Journal" key="g j" />
     <QbLink report="holdings" name={_("Holdings")} key="g h" />
     <QbLink report="commodities" name={_("Commodities")} key="g c" />
     <QbLink

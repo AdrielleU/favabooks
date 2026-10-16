@@ -1,13 +1,14 @@
 import { Route } from "../../reports/route.ts";
 import { get_url_filters } from "../../stores/filters.ts";
-import type { QbPostings } from "../api.ts";
-import { get_qb_postings } from "../api.ts";
+import type { QbCategory, QbPostings } from "../api.ts";
+import { get_qb_categories, get_qb_postings } from "../api.ts";
 import Reclassify from "./Reclassify.svelte";
 import type { ReclassifySearch } from "./search.ts";
 
 export const qb_reclassify = new Route<{
   search: ReclassifySearch;
   result: QbPostings | null;
+  categories: QbCategory[];
 }>(
   "qb_reclassify",
   Reclassify,
@@ -20,10 +21,13 @@ export const qb_reclassify = new Route<{
       max_amount: param("max_amount"),
     };
     const { time, account, filter } = get_url_filters(url);
-    const result = search.account_name
-      ? await get_qb_postings({ ...search, time, account, filter })
-      : null;
-    return { search, result };
+    const [result, categories] = await Promise.all([
+      search.account_name
+        ? get_qb_postings({ ...search, time, account, filter })
+        : null,
+      get_qb_categories({ time, account, filter }),
+    ]);
+    return { search, result, categories };
   },
   () => "Bulk reclassify",
 );

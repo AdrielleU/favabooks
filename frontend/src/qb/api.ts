@@ -20,6 +20,7 @@ import {
   number,
   object,
   optional,
+  record,
   string,
 } from "../lib/validation.ts";
 import { base_url } from "../stores/index.ts";
@@ -436,3 +437,49 @@ export const put_qb_reconcile = async (body: {
     body,
     object({ reconciled: number, balance_assertion: boolean }),
   );
+
+// --- All transactions and categories ----------------------------------------
+
+const qb_transactions = object({
+  rows: array(
+    object({
+      entry_hash: string,
+      date,
+      flag: string,
+      kind: string,
+      payee: string,
+      narration: string,
+      categories: array(string),
+      paid_with: array(string),
+      amount: decimal,
+      currency: string,
+      receipts: array(object({ name: string, filename: string })),
+      tags: array(string),
+    }),
+  ),
+  total: number,
+  counts: record(number),
+});
+
+const qb_category = object({
+  account: string,
+  count: number,
+  total: decimal,
+  currency: string,
+});
+
+export type QbTransactions = ValidationT<typeof qb_transactions>;
+export type QbTransactionRow = QbTransactions["rows"][number];
+export type QbCategory = ValidationT<typeof qb_category>;
+
+/** Transactions in the header filters, newest first. */
+export const get_qb_transactions = async (
+  params: QbFilters & { search: string; kind: string },
+): Promise<QbTransactions> =>
+  qb_get("qb_transactions", { ...params }, qb_transactions);
+
+/** Income and expense accounts used in the header filters. */
+export const get_qb_categories = async (
+  params: QbFilters,
+): Promise<QbCategory[]> =>
+  qb_get("qb_categories", { ...params }, array(qb_category));

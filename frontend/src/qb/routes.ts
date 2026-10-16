@@ -6,6 +6,7 @@ import { qb_reclassify } from "./reclassify/index.ts";
 import { qb_reconcile } from "./reconcile/index.ts";
 import { qb_register } from "./register/index.ts";
 import { qb_review } from "./review/index.ts";
+import { qb_transactions } from "./transactions/index.ts";
 import { wip_routes } from "./wip/index.ts";
 
 /** All qb-fork routes. Each name must also be in CLIENT_SIDE_REPORTS. */
@@ -13,6 +14,7 @@ export const qb_routes: FrontendRoute[] = [
   qb_dashboard,
   qb_review,
   qb_banks,
+  qb_transactions,
   qb_register,
   qb_reconcile,
   qb_reclassify,
