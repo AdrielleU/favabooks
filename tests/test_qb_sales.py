@@ -38,6 +38,11 @@ option "operating_currency" "USD"
   Expenses:Fees:Stripe      30.00 USD
   Income:Services       -1000.00 USD
 
+2026-02-07 * "ZenBusiness" "A vendor's invoice, not a sale"
+  invoice: "1177261"
+  Expenses:Uncategorized     99.00 USD
+  Assets:Bank:Checking
+
 2026-02-10 * "Walk-in" "Cash sale"
   Assets:Bank:Checking      50.00 USD
   Income:Services

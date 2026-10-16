@@ -147,7 +147,11 @@ def _sums(
 
 
 def _collect() -> dict[str, _Invoice]:
-    """Invoices by number, from every transaction with `invoice:` metadata."""
+    """Sales invoices by number, from transactions with `invoice:` metadata.
+
+    Only transactions touching income or Accounts Receivable count; an
+    `invoice:` on an expense is the vendor's invoice number.
+    """
     assets, income = _roots()
     documents = documents_by_name()
     invoices: dict[str, _Invoice] = {}
@@ -155,15 +159,21 @@ def _collect() -> dict[str, _Invoice]:
         number = _text(txn.meta.get("invoice"))
         if not number:
             continue
-        inv = invoices.setdefault(number, _Invoice(number))
         billed, paid, currency = _sums(txn, lambda a: _is_ar(a, assets))
+        stripe = False
         if not currency:
             # No receivable: a sale paid when booked (e.g. by Stripe).
             refunds, sales, currency = _sums(
                 txn, lambda a: a.startswith(f"{income}:")
             )
+            if not currency:
+                # Neither: a vendor's invoice on an expense, not a sale.
+                continue
             billed = paid = sales - refunds
-            inv.source = "stripe" if inv.date is None else inv.source
+            stripe = True
+        inv = invoices.setdefault(number, _Invoice(number))
+        if stripe and inv.date is None:
+            inv.source = "stripe"
         if billed > 0 and inv.date is None:
             inv.date = txn.date
             inv.memo = txn.narration or ""
