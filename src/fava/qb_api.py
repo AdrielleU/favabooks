@@ -24,12 +24,17 @@ from fava.core.inventory import CounterInventory
 from fava.helpers import FavaAPIError
 from fava.json_api import api_endpoint
 from fava.json_api import ValidationError
+from fava.qb_importers import BANK_FORMATS
+from fava.qb_importers import BankCSV
+from fava.qb_importers import StripePayouts
+from fava.qb_importers.stripe_payouts import REQUIRED as STRIPE_REQUIRED
 from fava.util.date import local_today
 
 if TYPE_CHECKING:  # pragma: no cover
     from collections.abc import Callable
 
     from fava.core import FavaLedger
+    from fava.qb_importers import BankFormat
 
 #: Accounts shown on the dashboard's balances card.
 CASH_ACCOUNTS = re.compile(r"^Assets:(Bank|Stripe)(:|$)")
@@ -207,6 +212,23 @@ class QbReviewRow(Struct, frozen=True):
     categories: list[str]
 
 
+class QbReviewAccount(Struct, frozen=True):
+    """A bank or card account with transactions waiting for review."""
+
+    account: str
+    #: Balance in the books (all entries, regardless of filters).
+    balance: Decimal
+    currency: str
+    to_review: int
+
+
+class QbReview(Struct, frozen=True):
+    """The review queue and the accounts it touches."""
+
+    rows: list[QbReviewRow]
+    accounts: list[QbReviewAccount]
+
+
 class QbEditFailure(Struct, frozen=True):
     """An entry that could not be changed."""
 
@@ -222,7 +244,7 @@ class QbEditResult(Struct, frozen=True):
 
 
 @api_endpoint
-def get_qb_review() -> list[QbReviewRow]:
+def get_qb_review() -> QbReview:
     """Transactions flagged `!`, newest first, within the header filters."""
     g.ledger.changed()
     options = g.ledger.options
@@ -252,7 +274,29 @@ def get_qb_review() -> list[QbReviewRow]:
             )
         )
     rows.sort(key=lambda row: row.date, reverse=True)
-    return rows
+
+    counts: dict[str, int] = defaultdict(int)
+    currencies: dict[str, str] = {}
+    for row in rows:
+        counts[row.account] += 1
+        currencies.setdefault(row.account, row.currency)
+    # Keyed by currency too, so a multi-currency account sums correctly.
+    balances: dict[tuple[str, str], Decimal] = defaultdict(Decimal)
+    for txn in g.ledger.all_entries_by_type.Transaction:
+        for posting in txn.postings:
+            if posting.account in counts:
+                number, currency = _amount(posting.units)
+                balances[posting.account, currency] += number
+    accounts = [
+        QbReviewAccount(
+            account,
+            balances[account, currencies[account]],
+            currencies[account],
+            n,
+        )
+        for account, n in sorted(counts.items())
+    ]
+    return QbReview(rows, accounts)
 
 
 def _check_account(account: str) -> None:
@@ -583,3 +627,100 @@ def get_qb_exports(year: int) -> list[QbExport]:
             f"cost(position) AS amount {period} ORDER BY account, date",
         ),
     ]
+
+
+# --- Bank formats and configured importers ---------------------------------
+
+
+class QbBankFormat(Struct, frozen=True):
+    """A CSV layout the importers recognise (several can share a key)."""
+
+    key: str
+    bank: str
+    kind: str
+    download: str
+    #: Header columns that identify the file; empty for header-less files.
+    columns: list[str]
+    amounts: str
+    has_balance: bool
+    confidence: str
+
+
+class QbImporter(Struct, frozen=True):
+    """An importer in this ledger's import config."""
+
+    name: str
+    key: str
+    account: str
+
+
+class QbBankImports(Struct, frozen=True):
+    """Supported formats and how this ledger's imports are set up."""
+
+    formats: list[QbBankFormat]
+    importers: list[QbImporter]
+    config_file: str
+    import_dirs: list[str]
+    errors: list[str]
+
+
+def _describe_amounts(fmt: BankFormat) -> str:
+    if fmt.debit and fmt.credit:
+        return f'"{fmt.debit}" is money out, "{fmt.credit}" money in'
+    if fmt.sign_column:
+        return f'"{fmt.amount}" with "{fmt.sign_column}" giving the direction'
+    if fmt.negate:
+        return f'"{fmt.amount}", purchases positive (flipped on import)'
+    return f'"{fmt.amount}", negative is money out'
+
+
+@api_endpoint
+def get_qb_bank_formats() -> QbBankImports:
+    """Bank and Stripe formats, plus the ledger's configured importers."""
+    ledger = g.ledger
+    formats = [
+        QbBankFormat(
+            key=fmt.key,
+            bank=fmt.bank,
+            kind=fmt.kind,
+            download=fmt.download,
+            columns=list(fmt.columns),
+            amounts=_describe_amounts(fmt),
+            has_balance=fmt.balance is not None,
+            confidence=fmt.confidence,
+        )
+        for fmt in BANK_FORMATS
+    ]
+    formats.append(
+        QbBankFormat(
+            key="stripe_payouts",
+            bank="Stripe",
+            kind="Payments (payout reconciliation)",
+            download="Reports → Payouts reconciliation → Download → Itemized",
+            columns=sorted(STRIPE_REQUIRED),
+            amounts='"gross", "fee" and "net" per balance transaction',
+            has_balance=False,
+            confidence="verified",
+        )
+    )
+    importers = []
+    config = ledger.ingest.loaded_config
+    for wrapped in config.importers.values() if config else ():
+        importer = wrapped.importer
+        if isinstance(importer, BankCSV):
+            key, account = importer.key, importer.account("")
+        elif isinstance(importer, StripePayouts):
+            key, account = "stripe_payouts", importer.account("")
+        else:
+            key, account = "", ""
+        importers.append(QbImporter(importer.name, key, account))
+    module_path = ledger.ingest.module_path
+    return QbBankImports(
+        formats=formats,
+        importers=importers,
+        config_file=str(module_path) if module_path else "",
+        import_dirs=[
+            str(ledger.join_path(d)) for d in ledger.fava_options.import_dirs
+        ],
+        errors=[error.message for error in ledger.ingest.errors],
+    )

@@ -14,6 +14,7 @@ import type {
 } from "../lib/validation.ts";
 import {
   array,
+  boolean,
   date,
   decimal,
   number,
@@ -123,14 +124,25 @@ const qb_edit_result = object({
   failed: array(object({ entry_hash: string, error: string })),
 });
 
+const qb_review = object({
+  rows: array(qb_review_row),
+  accounts: array(
+    object({
+      account: string,
+      balance: decimal,
+      currency: string,
+      to_review: number,
+    }),
+  ),
+});
+
 export type QbReviewRow = ValidationT<typeof qb_review_row>;
+export type QbReview = ValidationT<typeof qb_review>;
 export type QbEditResult = ValidationT<typeof qb_edit_result>;
 
 /** Transactions flagged ! within the header filters, newest first. */
-export const get_qb_review = async (
-  params: QbFilters,
-): Promise<QbReviewRow[]> =>
-  qb_get("qb_review", { ...params }, array(qb_review_row));
+export const get_qb_review = async (params: QbFilters): Promise<QbReview> =>
+  qb_get("qb_review", { ...params }, qb_review);
 
 /** Accept entries (! to *), optionally moving from_account to to_account. */
 export const put_qb_accept = async (body: {
@@ -210,3 +222,29 @@ export const get_qb_register = async (params: {
 export const get_qb_exports = async (params: {
   year: string;
 }): Promise<QbExport[]> => qb_get("qb_exports", params, array(qb_export));
+
+const qb_bank_format = object({
+  key: string,
+  bank: string,
+  kind: string,
+  download: string,
+  columns: array(string),
+  amounts: string,
+  has_balance: boolean,
+  confidence: string,
+});
+
+const qb_bank_imports = object({
+  formats: array(qb_bank_format),
+  importers: array(object({ name: string, key: string, account: string })),
+  config_file: string,
+  import_dirs: array(string),
+  errors: array(string),
+});
+
+export type QbBankFormat = ValidationT<typeof qb_bank_format>;
+export type QbBankImports = ValidationT<typeof qb_bank_imports>;
+
+/** Supported bank formats and this ledger's import setup. */
+export const get_qb_bank_formats = async (): Promise<QbBankImports> =>
+  qb_get("qb_bank_formats", {}, qb_bank_imports);

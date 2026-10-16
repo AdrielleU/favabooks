@@ -114,7 +114,7 @@ def get_review(client: FlaskClient, time: str = "") -> list[dict[str, object]]:
         "/qb-review/api/qb_review", query_string={"time": time}
     )
     assert response.status_code == HTTPStatus.OK.value
-    rows = response.get_json()["data"]
+    rows = response.get_json()["data"]["rows"]
     assert isinstance(rows, list)
     return rows
 
@@ -156,6 +156,30 @@ def test_review_rows(review: tuple[FlaskClient, Path]) -> None:
     assert Decimal(str(rows[2]["amount"])) == Decimal("-20.00")
     assert rows[2]["currency"] == "USD"
     assert rows[2]["entry_hash"] == entry_hash(client, "2026-03-02")
+
+    accounts = client.get("/qb-review/api/qb_review").get_json()["data"][
+        "accounts"
+    ]
+    assert accounts == [
+        {
+            "account": "Assets:Bank:Checking",
+            "balance": "-130.00",
+            "currency": "USD",
+            "to_review": 2,
+        },
+        {
+            "account": "Expenses:Meals",
+            "balance": "35.00",
+            "currency": "USD",
+            "to_review": 1,
+        },
+        {
+            "account": "Liabilities:Card",
+            "balance": "-20.00",
+            "currency": "USD",
+            "to_review": 1,
+        },
+    ]
 
     # The header's time filter narrows the queue.
     assert [r["date"] for r in get_review(client, "2026-03-02")] == [
@@ -385,3 +409,92 @@ def test_exports(qb_client: FlaskClient) -> None:
         )
         result = response.get_json()["data"]
         assert result["rows"], export["key"]
+
+
+# --- Bank formats and the import config --------------------------------------
+
+IMPORT_LEDGER = QB_DATA_DIR / "import-ledger"
+
+
+@pytest.fixture(scope="module")
+def import_client() -> FlaskClient:
+    app = create_app(
+        [
+            IMPORT_LEDGER / "main.beancount",
+            IMPORT_LEDGER / "missing-config.beancount",
+        ],
+        load=True,
+    )
+    app.testing = True
+    return app.test_client()
+
+
+def test_bank_formats(import_client: FlaskClient) -> None:
+    response = import_client.get("/qb-import/api/qb_bank_formats")
+    assert response.status_code == HTTPStatus.OK.value
+    data = response.get_json()["data"]
+
+    by_key: dict[str, list[dict[str, object]]] = {}
+    for fmt in data["formats"]:
+        by_key.setdefault(fmt["key"], []).append(fmt)
+    assert len(by_key["wells_fargo"]) == 2  # 2026 header and header-less
+    assert by_key["wells_fargo"][1]["columns"] == []
+    assert by_key["chase_checking"][0]["has_balance"] is True
+    assert by_key["stripe_payouts"][0]["bank"] == "Stripe"
+    amounts = {key: fmts[0]["amounts"] for key, fmts in by_key.items()}
+    assert amounts["chase_checking"] == '"Amount", negative is money out'
+    assert str(amounts["amex"]).endswith("(flipped on import)")
+    assert str(amounts["capital_one_card"]).startswith('"Debit" is money out')
+    assert "Transaction Type" in str(amounts["capital_one_360"])
+
+    assert data["importers"] == [
+        {
+            "name": "chase_checking:Assets:Bank:Chase",
+            "key": "chase_checking",
+            "account": "Assets:Bank:Chase",
+        },
+        {
+            "name": "stripe_payouts:Assets:Stripe",
+            "key": "stripe_payouts",
+            "account": "Assets:Stripe",
+        },
+        {"name": "<run_path>.Other", "key": "", "account": ""},
+    ]
+    assert data["config_file"].endswith("import-ledger/config.py")
+    assert data["import_dirs"][0].endswith("import-ledger/inbox")
+    assert data["errors"] == []
+
+    # Fava's own Import page uses the importer: the Stripe transfer is
+    # skipped and the statement balance comes along.
+    files = import_client.get("/qb-import/api/imports").get_json()["data"]
+    (inbox_file,) = [f for f in files if f["importers"]]
+    assert [i["importer_name"] for i in inbox_file["importers"]] == [
+        "chase_checking:Assets:Bank:Chase"
+    ]
+    extracted = import_client.get(
+        "/qb-import/api/extract",
+        query_string={
+            "filename": inbox_file["name"],
+            "importer": "chase_checking:Assets:Bank:Chase",
+        },
+    ).get_json()["data"]
+    assert [e["t"] for e in extracted] == [
+        "Transaction",
+        "Transaction",
+        "Balance",
+    ]
+
+
+def test_bank_formats_without_config(
+    import_client: FlaskClient, qb_client: FlaskClient
+) -> None:
+    data = qb_client.get("/qb-example/api/qb_bank_formats").get_json()["data"]
+    assert (data["importers"], data["config_file"], data["errors"]) == (
+        [],
+        "",
+        [],
+    )
+    data = import_client.get(
+        "/qb-import-missing/api/qb_bank_formats"
+    ).get_json()["data"]
+    assert data["errors"] == ["Import config does not exist"]

@@ -1,12 +1,11 @@
 <script lang="ts">
   import AccountInput from "../../entry-forms/AccountInput.svelte";
-  import { day } from "../../format.ts";
   import { notify, notify_err } from "../../notifications.ts";
   import { router } from "../../router.ts";
-  import { ctx } from "../../stores/format.ts";
   import { accounts_set } from "../../stores/index.ts";
   import type { QbPostings } from "../api.ts";
   import { put_qb_reclassify } from "../api.ts";
+  import { money, short_date } from "../format.ts";
   import { navigate_with, type ReclassifySearch } from "./search.ts";
 
   let {
@@ -105,7 +104,9 @@
     <span>to</span>
     <input type="text" inputmode="decimal" bind:value={form.max_amount} />
   </label>
-  <button type="submit" disabled={!form.account_name}>Search</button>
+  <button type="submit" class="qb-primary" disabled={!form.account_name}>
+    Search
+  </button>
   <p class="hint form-hint">
     Dates come from the Time filter in the header. Amounts match either sign.
   </p>
@@ -126,6 +127,7 @@
         <span class="picker"><AccountInput bind:value={move_to} /></span>
         <button
           type="button"
+          class="qb-primary"
           disabled={busy || !move_to || move_to === search.account_name}
           onclick={apply}
         >
@@ -170,7 +172,7 @@
                 />
               </td>
               <td class="date">
-                {day(row.date)}
+                {short_date(row.date)}
                 {#if row.flag === "!"}<span class="flag" title="Not reviewed"
                     >!</span
                   >{/if}
@@ -184,7 +186,7 @@
                 </a>
               </td>
               <td class="others">{row.others.join(", ")}</td>
-              <td class="num">{$ctx.amount(row.amount, row.currency)}</td>
+              <td class="num">{money(row.amount, row.currency)}</td>
             </tr>
           {/each}
         </tbody>
@@ -297,7 +299,6 @@
   }
 
   .num {
-    font-family: var(--font-family-monospaced);
     text-align: right;
   }
 

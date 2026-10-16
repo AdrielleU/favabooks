@@ -1,57 +1,326 @@
 /*
- * qb-fork: QuickBooks-style layout (dark left nav, white header, cards).
- * Loaded last from app.ts, so these override style.css and layout.css.
- * Colours are our own; light-dark() keeps Fava's dark mode working.
+ * qb-fork: Favabooks theme, a QuickBooks-like layout with our own colours.
+ * Loaded last from app.ts, so it overrides style.css, base.css and layout.css.
+ * Every colour is light-dark() so Fava's dark mode keeps working.
+ * Stock Fava pages are restyled only through variables and element rules
+ * here, never by editing their components.
  */
 :root {
-  --qb-accent: light-dark(hsl(160deg 82% 24%), hsl(160deg 55% 52%));
-  --qb-nav: light-dark(hsl(215deg 28% 17%), hsl(215deg 28% 11%));
-  --qb-nav-raised: light-dark(hsl(215deg 25% 25%), hsl(215deg 25% 19%));
+  /* Type */
+  --font-family:
+    ui-sans-serif, system-ui, -apple-system, "Segoe UI", roboto,
+    "Helvetica Neue", arial, sans-serif;
 
-  --background: light-dark(hsl(225deg 20% 97%), hsl(220deg 13% 13%));
-  --border: light-dark(hsl(218deg 15% 90%), hsl(220deg 10% 26%));
+  /* Favabooks palette */
+  --qb-accent: light-dark(hsl(160deg 82% 24%), hsl(158deg 50% 55%));
+  --qb-accent-strong: hsl(160deg 75% 30%);
+  --qb-accent-soft: light-dark(hsl(158deg 45% 94%), hsl(160deg 40% 16%));
+  --qb-nav: light-dark(hsl(215deg 28% 17%), hsl(216deg 28% 9%));
+  --qb-nav-raised: light-dark(hsl(215deg 22% 24%), hsl(215deg 22% 16%));
+  --qb-nav-active: hsl(0deg 0% 100% / 9%);
+  --qb-surface: light-dark(hsl(0deg 0% 100%), hsl(216deg 18% 14%));
+  --qb-muted: light-dark(hsl(220deg 9% 43%), hsl(218deg 11% 65%));
+  --qb-radius: 10px;
+  --qb-shadow:
+    0 1px 2px hsl(220deg 43% 11% / 6%), 0 1px 3px hsl(220deg 43% 11% / 8%);
+  --qb-shadow-lg:
+    0 4px 6px -2px hsl(220deg 43% 11% / 5%),
+    0 12px 24px -4px hsl(220deg 43% 11% / 14%);
+
+  /* Fava's own variables */
+  --background: light-dark(hsl(225deg 20% 96%), hsl(216deg 22% 10%));
+  --background-darker: light-dark(hsl(220deg 16% 93%), hsl(216deg 18% 17%));
+  --background-darkest: light-dark(hsl(220deg 14% 89%), hsl(216deg 16% 21%));
+  --border-lighter: light-dark(hsl(220deg 16% 92%), hsl(216deg 14% 20%));
+  --border: light-dark(hsl(220deg 14% 87%), hsl(216deg 13% 25%));
+  --border-darker: light-dark(hsl(220deg 12% 78%), hsl(216deg 12% 33%));
+  --text-color: light-dark(hsl(222deg 14% 18%), hsl(216deg 20% 90%));
+  --text-color-lighter: light-dark(hsl(222deg 10% 30%), hsl(216deg 14% 80%));
+  --text-color-lightest: var(--qb-muted);
   --link-color: var(--qb-accent);
-  --button-background: light-dark(hsl(160deg 82% 24%), hsl(160deg 55% 34%));
+  --link-color-lighter: var(--qb-accent);
+  --heading-color: var(--text-color);
+  --button-background: var(--qb-accent-strong);
+  --button-muted-background: var(--background-darker);
+  --code-background: var(--background-darker);
 
-  --sidebar-background: var(--qb-nav);
-  --sidebar-color: hsl(220deg 13% 85%);
-  --sidebar-hover-color: hsl(0deg 0% 100%);
-  --sidebar-border: var(--qb-nav-raised);
-  --mobile-button-text: var(--sidebar-color);
+  /* Light values for stock components that reuse these (Help's page list,
+   * the Editor menu); the dark nav values are set on the nav itself below. */
+  --sidebar-background: var(--qb-surface);
+  --sidebar-color: var(--text-color-lighter);
+  --sidebar-hover-color: var(--qb-accent);
+  --sidebar-border: var(--border-lighter);
 
-  --header-background: light-dark(hsl(0deg 0% 100%), hsl(220deg 13% 18%));
-  --header-color: light-dark(hsl(221deg 39% 11%), hsl(220deg 13% 91%));
-  --header-placeholder-color: light-dark(
-    hsl(220deg 9% 46%),
-    hsl(220deg 9% 65%)
-  );
-  --header-placeholder-background: light-dark(
-    hsl(220deg 14% 96%),
-    hsl(220deg 13% 24%)
-  );
+  --header-background: var(--qb-surface);
+  --header-color: var(--text-color);
+  --header-placeholder-color: var(--qb-muted);
+  --header-placeholder-background: var(--background);
 
-  --aside-width: 210px;
+  --table-header-text: var(--qb-muted);
+  --table-header-background: var(--qb-surface);
+  --table-border: var(--border-lighter);
+  --table-background-even: transparent;
+  --summary-background: var(--background-darker);
+  --summary-background-darker: var(--background-darkest);
+
+  --aside-width: 232px;
 }
+
+body {
+  -webkit-font-smoothing: antialiased;
+  color: var(--text-color);
+  background: var(--background);
+}
+
+/* --- Shell ---------------------------------------------------------------- */
 
 header {
   border-bottom: 1px solid var(--border);
+  box-shadow: 0 1px 0 hsl(220deg 43% 11% / 3%);
+}
+
+aside,
+.aside-buttons {
+  --sidebar-background: var(--qb-nav);
+  --sidebar-color: hsl(220deg 14% 82%);
+  --sidebar-hover-color: hsl(0deg 0% 100%);
+  --sidebar-border: var(--qb-nav-raised);
+  --mobile-button-text: var(--sidebar-color);
+  --placeholder-background: var(--qb-nav-raised);
+  --placeholder-color: hsl(220deg 9% 70%);
 }
 
 aside {
-  --placeholder-background: var(--qb-nav-raised);
-  --placeholder-color: hsl(220deg 9% 70%);
-
   color: var(--sidebar-color);
+  border-right: 0;
 }
 
+article {
+  padding: 1.5rem 2rem 3rem;
+}
+
+@media (width <= 767px) {
+  article {
+    padding: 1rem;
+  }
+}
+
+/* --- Controls ------------------------------------------------------------- */
+
+button,
+.button {
+  font-weight: 600;
+  border-radius: 6px;
+  transition:
+    filter 0.1s,
+    background-color 0.1s;
+}
+
+button:not(:disabled):hover,
+.button:hover {
+  filter: brightness(1.07);
+}
+
+button.link,
+.button.link {
+  font-weight: inherit;
+  border-radius: 0;
+}
+
+/* The primary action on a Favabooks page. */
+.qb-primary {
+  padding: 0.5em 1.25em;
+  border-radius: 999px;
+}
+
+/* A secondary (outlined) action. */
+.qb-secondary {
+  padding: 0.5em 1.25em;
+  color: var(--text-color);
+  background: var(--qb-surface);
+  border: 1px solid var(--border-darker);
+  border-radius: 999px;
+}
+
+select {
+  padding: 0.4em 0.6em;
+  color: var(--text-color);
+  background: var(--qb-surface);
+  border: 1px solid var(--border-darker);
+  border-radius: 6px;
+}
+
+article input[type="text"],
+article input[type="number"],
+article input[type="date"],
+article input:not([type]),
+article select,
+article textarea {
+  border-color: var(--border-darker);
+  border-radius: 6px;
+}
+
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+button:focus-visible,
+a:focus-visible {
+  outline: 2px solid var(--qb-accent);
+  outline-offset: 1px;
+}
+
+/* --- Tables (stock and Favabooks) ----------------------------------------- */
+
+article table {
+  background: var(--qb-surface);
+}
+
+article td,
+article th {
+  padding: 0.5rem 0.75rem;
+}
+
+article thead th {
+  font-size: 0.85em;
+  font-weight: 600;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+}
+
+article tbody td {
+  border: 0;
+  border-bottom: 1px solid var(--table-border);
+}
+
+article tbody tr:hover td {
+  background: color-mix(in srgb, var(--qb-accent) 5%, transparent);
+}
+
+td.num,
+th.num,
+.num {
+  font-family: var(--font-family);
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- Favabooks building blocks -------------------------------------------- */
+
 .qb-card {
-  padding: 16px 20px;
-  background: var(--header-background);
-  border: 1px solid var(--border);
-  border-radius: 8px;
+  padding: 1.1rem 1.25rem;
+  background: var(--qb-surface);
+  border: 1px solid var(--border-lighter);
+  border-radius: var(--qb-radius);
+  box-shadow: var(--qb-shadow);
 }
 
 .qb-wip::after {
   content: " (WIP)";
   opacity: 0.6;
+}
+
+/* --- Stock Fava pages (CSS only) ------------------------------------------ */
+
+/* Report trees (P&L, balance sheet, trial balance) and the journal: one
+ * white card, row dividers instead of cell borders. */
+.tree-table-new,
+.journal {
+  overflow: hidden;
+  background: var(--qb-surface);
+  border: 1px solid var(--border-lighter);
+  border-radius: var(--qb-radius);
+  box-shadow: var(--qb-shadow);
+}
+
+.flex-table .num {
+  font-family: var(--font-family);
+  font-variant-numeric: tabular-nums;
+}
+
+article .tree-table-new p > span {
+  padding: 0.45rem 0.75rem;
+  margin-right: 0;
+  border: 0;
+  border-bottom: 1px solid var(--table-border);
+}
+
+.journal p > * {
+  padding: 0.4rem 0.5rem;
+}
+
+.flex-table .head p > * {
+  padding: 0.55rem 0.75rem;
+  font-size: 0.85em;
+  font-weight: 600;
+  background: var(--qb-surface);
+  border-bottom: 1px solid var(--border);
+}
+
+.tree-table-new a.account {
+  color: var(--text-color);
+}
+
+.tree-table-new a.account:hover {
+  color: var(--qb-accent);
+}
+
+.tree-table-new p:hover > span,
+.journal > li > p:hover > * {
+  background: color-mix(in srgb, var(--qb-accent) 5%, transparent);
+}
+
+/* Top-level rows of a report (Income, Expenses, Net Profit) in bold. */
+.tree-table-new > li:not(.head) > p {
+  font-weight: 600;
+}
+
+.tree-table-new > li:not(.head) > ol p {
+  font-weight: normal;
+}
+
+/* Calmer entry colours: amber for "needs review", soft tints elsewhere. */
+.journal {
+  .pending {
+    --entry-background: light-dark(hsl(40deg 95% 90%), hsl(38deg 45% 24%));
+  }
+
+  .balance {
+    --entry-background: light-dark(hsl(150deg 45% 92%), hsl(150deg 30% 18%));
+  }
+
+  .open,
+  .close {
+    --entry-background: light-dark(hsl(220deg 14% 93%), hsl(216deg 14% 20%));
+  }
+
+  .note,
+  .query,
+  .custom,
+  .document,
+  .other,
+  .pad,
+  .budget {
+    --entry-background: light-dark(hsl(210deg 60% 94%), hsl(210deg 35% 20%));
+  }
+}
+
+/* Journal entry-type toggles as chips: filled when active. */
+article form.flex-row button {
+  padding: 0.25em 0.75em;
+  font-size: 0.85em;
+  color: var(--button-color);
+  background: var(--qb-accent-strong);
+  border: 1px solid var(--qb-accent-strong);
+  border-radius: 999px;
+}
+
+article form.flex-row button.inactive {
+  color: var(--text-color-lighter);
+  background: var(--qb-surface);
+  border-color: var(--border-darker);
+}
+
+/* Options: long values (paths, in <pre>) wrap instead of running off. */
+article td > pre {
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
 }

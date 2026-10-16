@@ -1,0 +1,2 @@
+automatic_payout_effective_at,automatic_payout_id,available_on,balance_transaction_id,created,currency,description,fee,gross,net,reporting_category,customer_name,customer_email,invoice_id
+2026-10-16 00:00:00,po_demo1,2026-10-15 00:00:00,txn_demo1,2026-10-14 10:00:00,usd,Invoice 10-14,69.90,2400.00,2330.10,charge,Blue Mesa Realty,ap@bluemesa.example,in_demo1

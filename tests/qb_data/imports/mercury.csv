@@ -1,0 +1,4 @@
+Date (UTC),Description,Amount,Status,Source Account,Bank Description,Reference,Note,Last Four Digits,Name On Card,Category,GL Code,Timestamp,Original Currency
+10-13-2026,Vercel,-20.00,Sent,Mercury Checking,VERCEL INC,,hosting,4321,Alex Doe,Software,,10-13-2026 18:02:11,USD
+10-12-2026,Acme Dental,1500.00,Sent,Mercury Checking,ACME DENTAL ACH,INV-17,,,,,,10-12-2026 09:00:00,USD
+10-14-2026,Failed transfer,-99.00,Failed,Mercury Checking,,,,,,,,10-14-2026 10:00:00,USD

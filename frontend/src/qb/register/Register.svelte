@@ -1,12 +1,11 @@
 <script lang="ts">
   import AccountInput from "../../entry-forms/AccountInput.svelte";
-  import { day } from "../../format.ts";
   import { notify, notify_err } from "../../notifications.ts";
   import { router } from "../../router.ts";
-  import { ctx } from "../../stores/format.ts";
   import { accounts_set } from "../../stores/index.ts";
   import type { QbRegister, QbRegisterRow } from "../api.ts";
   import { put_qb_reclassify } from "../api.ts";
+  import { money, short_date } from "../format.ts";
 
   let {
     account_name,
@@ -58,13 +57,35 @@
       busy = false;
     }
   }
+  /** QuickBooks-style column names for the account type. */
+  let columns = $derived.by(() => {
+    const root = register?.account.split(":")[0] ?? "";
+    if (root === "Assets") {
+      return { up: "Deposit", down: "Payment" };
+    }
+    if (root === "Liabilities") {
+      return { up: "Payment", down: "Charge" };
+    }
+    return { up: "Debit", down: "Credit" };
+  });
+  let ending = $derived(register?.rows[0] ?? null);
 </script>
 
 <form class="picker" onsubmit={open}>
   <span class="input"><AccountInput bind:value={picked} required /></span>
-  <button type="submit" disabled={!picked}>Open register</button>
+  <button type="submit" class="qb-primary" disabled={!picked}>
+    Open register
+  </button>
   {#if register}
     <span class="hint">Dates follow the Time filter in the header.</span>
+    {#if ending}
+      <span class="ending">
+        <span>Ending balance</span>
+        <strong class:negative={ending.balance < 0}>
+          {money(ending.balance, ending.currency)}
+        </strong>
+      </span>
+    {/if}
   {/if}
 </form>
 
@@ -76,8 +97,8 @@
           <th>Date</th>
           <th>Payee and memo</th>
           <th>Category</th>
-          <th class="num">Debit</th>
-          <th class="num">Credit</th>
+          <th class="num">{columns.down}</th>
+          <th class="num">{columns.up}</th>
           <th class="num">Balance</th>
         </tr>
       </thead>
@@ -87,7 +108,7 @@
           {@const edited = edits[k] ?? original(row)}
           <tr>
             <td class="date">
-              {day(row.date)}
+              {short_date(row.date)}
               {#if row.flag === "!"}<span class="flag" title="Not reviewed"
                   >!</span
                 >{/if}
@@ -130,13 +151,13 @@
               {/if}
             </td>
             <td class="num">
-              {row.amount > 0 ? $ctx.amount(row.amount, row.currency) : ""}
+              {row.amount < 0 ? money(-row.amount, row.currency) : ""}
             </td>
             <td class="num">
-              {row.amount < 0 ? $ctx.amount(-row.amount, row.currency) : ""}
+              {row.amount > 0 ? money(row.amount, row.currency) : ""}
             </td>
             <td class="num balance" class:negative={row.balance < 0}>
-              {$ctx.amount(row.balance, row.currency)}
+              {money(row.balance, row.currency)}
             </td>
           </tr>
         {:else}
@@ -148,7 +169,7 @@
             <td></td>
             <td colspan="4">Balance forward</td>
             <td class="num balance"
-              >{$ctx.amount(opening.amount, opening.currency)}</td
+              >{money(opening.amount, opening.currency)}</td
             >
           </tr>
         {/each}
@@ -213,7 +234,6 @@
   }
 
   .num {
-    font-family: var(--font-family-monospaced);
     text-align: right;
   }
 
@@ -246,6 +266,36 @@
 
   .category {
     min-width: 15rem;
+  }
+
+  /* Category boxes read as text until hovered or focused. */
+  .category :global(input) {
+    background: transparent;
+    border-color: transparent;
+  }
+
+  tr:hover .category :global(input),
+  .category :global(input:focus) {
+    background: var(--qb-surface);
+    border-color: var(--border-darker);
+  }
+
+  .ending {
+    display: flex;
+    flex-direction: column;
+    margin-left: auto;
+    text-align: right;
+  }
+
+  .ending span {
+    font-size: 0.8rem;
+    color: var(--qb-muted);
+  }
+
+  .ending strong {
+    font-size: 1.4rem;
+    font-weight: 650;
+    font-variant-numeric: tabular-nums;
   }
 
   .edit {

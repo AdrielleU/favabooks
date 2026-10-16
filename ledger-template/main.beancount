@@ -7,6 +7,8 @@ option "documents" "documents"
 2026-01-01 custom "fava-option" "default-page" "qb_dashboard/"
 2026-01-01 custom "fava-option" "auto-reload" "true"
 2026-01-01 custom "fava-option" "invert-income-liabilities-equity" "true"
+2026-01-01 custom "fava-option" "import-config" "importers/config.py"
+2026-01-01 custom "fava-option" "import-dirs" "inbox"
 ; In a real books repo (a git repo), record every save from the UI:
 ; 2026-01-01 custom "fava-extension" "fava.ext.auto_commit"
 

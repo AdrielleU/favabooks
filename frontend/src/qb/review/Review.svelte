@@ -1,32 +1,41 @@
 <script lang="ts">
   import AccountInput from "../../entry-forms/AccountInput.svelte";
-  import { day } from "../../format.ts";
+  import { url_for } from "../../helpers.ts";
   import { notify, notify_err } from "../../notifications.ts";
   import { router } from "../../router.ts";
-  import { ctx } from "../../stores/format.ts";
   import { accounts_set } from "../../stores/index.ts";
-  import type { QbEditResult, QbReviewRow } from "../api.ts";
+  import type { QbEditResult, QbReview, QbReviewRow } from "../api.ts";
   import { put_qb_accept } from "../api.ts";
+  import { money, short_date } from "../format.ts";
+  import Icon from "../Icon.svelte";
 
-  let { rows }: { rows: QbReviewRow[] } = $props();
+  let { review }: { review: QbReview } = $props();
 
   /** Category picked per row (entry hash -> account). */
   let chosen = $state<Record<string, string>>({});
   /** Selected rows (entry hash -> true). */
   let selected = $state<Record<string, boolean>>({});
+  /** Account card the table is filtered to ("" for all). */
+  let only = $state("");
   let bulk_category = $state("");
   let busy = $state(false);
 
   $effect.pre(() => {
     chosen = Object.fromEntries(
-      rows.map((row) => [row.entry_hash, row.categories[0] ?? ""]),
+      review.rows.map((row) => [row.entry_hash, row.categories[0] ?? ""]),
     );
     selected = {};
+    if (!review.accounts.some((a) => a.account === only)) {
+      only = "";
+    }
   });
 
   const is_split = (row: QbReviewRow) => row.categories.length !== 1;
   const leaf = (account: string) => account.split(":").slice(1).join(":");
 
+  let rows = $derived(
+    only ? review.rows.filter((row) => row.account === only) : review.rows,
+  );
   let selected_rows = $derived(
     rows.filter((row) => selected[row.entry_hash] === true),
   );
@@ -109,43 +118,96 @@
   }
 </script>
 
-{#if rows.length === 0}
+<div class="page-actions">
+  <span class="muted">
+    Imported transactions waiting to be categorised and accepted.
+  </span>
+  <a class="button qb-secondary" href={$url_for("import/")}>
+    <Icon name="upload" size={16} /> Upload file
+  </a>
+</div>
+
+{#if review.accounts.length}
+  <div class="accounts">
+    <button
+      type="button"
+      class="account-card"
+      class:active={only === ""}
+      onclick={() => (only = "")}
+    >
+      <span class="card-label"
+        ><Icon name="inbox" size={16} /> All accounts</span
+      >
+      <strong>{review.rows.length}</strong>
+      <span class="muted">to review</span>
+    </button>
+    {#each review.accounts as acct (acct.account)}
+      <button
+        type="button"
+        class="account-card"
+        class:active={only === acct.account}
+        onclick={() => (only = only === acct.account ? "" : acct.account)}
+        title={acct.account}
+      >
+        <span class="card-label">
+          <Icon
+            name={acct.account.startsWith("Liabilities")
+              ? "wallet"
+              : "landmark"}
+            size={16}
+          />
+          {leaf(acct.account)}
+        </span>
+        <strong>{acct.to_review}</strong>
+        <span class="muted">
+          to review · in books {money(acct.balance, acct.currency)}
+        </span>
+      </button>
+    {/each}
+  </div>
+{/if}
+
+{#if review.rows.length === 0}
   <div class="qb-card empty">
-    <h2>Nothing to review</h2>
-    <p>
+    <span class="empty-icon"><Icon name="circle-check" size={28} /></span>
+    <h2>You're all caught up</h2>
+    <p class="muted">
       Imported transactions flagged <code>!</code> show up here. Clear the header
       filters if you expected some.
     </p>
   </div>
 {:else}
-  <div class="toolbar">
-    {#if selected_rows.length}
-      <span>{selected_rows.length} selected</span>
-      <button
-        type="button"
-        disabled={busy}
-        onclick={async () => accept(selected_rows)}
-      >
-        Accept selected
-      </button>
-      <span class="sep">or categorize as</span>
-      <span class="picker"><AccountInput bind:value={bulk_category} /></span>
-      <button
-        type="button"
-        disabled={busy || !bulk_category}
-        onclick={async () => accept(selected_rows, bulk_category)}
-      >
-        Categorize &amp; accept
-      </button>
-    {:else}
-      <span class="hint">
-        {rows.length} transaction{rows.length === 1 ? "" : "s"} to review, within
-        the header filters. Select rows to accept or categorize several at once.
-      </span>
-    {/if}
-  </div>
-
   <div class="qb-card table-card">
+    <div class="toolbar" class:batch={selected_rows.length > 0}>
+      {#if selected_rows.length}
+        <strong>{selected_rows.length} selected</strong>
+        <button
+          type="button"
+          class="qb-primary"
+          disabled={busy}
+          onclick={async () => accept(selected_rows)}
+        >
+          Accept selected
+        </button>
+        <span class="muted">or categorize as</span>
+        <span class="picker"><AccountInput bind:value={bulk_category} /></span>
+        <button
+          type="button"
+          class="qb-secondary"
+          disabled={busy || !bulk_category}
+          onclick={async () => accept(selected_rows, bulk_category)}
+        >
+          Categorize &amp; accept
+        </button>
+      {:else}
+        <span class="tab"
+          >For review <span class="count">{rows.length}</span></span
+        >
+        <span class="muted">
+          {only ? leaf(only) : "All accounts"} · within the header filters
+        </span>
+      {/if}
+    </div>
     <table>
       <thead>
         <tr>
@@ -163,7 +225,7 @@
           <th class="num">Spent</th>
           <th class="num">Received</th>
           <th>Category</th>
-          <th></th>
+          <th class="action-col">Action</th>
         </tr>
       </thead>
       <tbody>
@@ -176,7 +238,7 @@
                 bind:checked={selected[row.entry_hash]}
               />
             </td>
-            <td class="date">{day(row.date)}</td>
+            <td class="date">{short_date(row.date)}</td>
             <td>
               <a href={`#context-${row.entry_hash}`} title="Show transaction">
                 <strong>{row.payee || row.narration}</strong>
@@ -185,17 +247,17 @@
                 {/if}
               </a>
             </td>
-            <td title={row.account}>{leaf(row.account)}</td>
+            <td class="muted" title={row.account}>{leaf(row.account)}</td>
             <td class="num">
-              {row.amount < 0 ? $ctx.amount(-row.amount, row.currency) : ""}
+              {row.amount < 0 ? money(-row.amount, row.currency) : ""}
             </td>
-            <td class="num">
-              {row.amount > 0 ? $ctx.amount(row.amount, row.currency) : ""}
+            <td class="num received">
+              {row.amount > 0 ? money(row.amount, row.currency) : ""}
             </td>
             <td class="category">
               {#if is_split(row)}
-                <span class="split" title={row.categories.join("\n")}>
-                  Split ({row.categories.length})
+                <span class="chip" title={row.categories.join("\n")}>
+                  Split · {row.categories.length}
                 </span>
               {:else}
                 <AccountInput
@@ -208,9 +270,10 @@
                 />
               {/if}
             </td>
-            <td>
+            <td class="action-col">
               <button
                 type="button"
+                class="qb-primary small"
                 disabled={busy}
                 onclick={async () => accept([row])}
               >
@@ -225,23 +288,70 @@
 {/if}
 
 <style>
-  .toolbar {
+  .page-actions {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.5rem 0.75rem;
+    gap: 0.5rem 1rem;
     align-items: center;
-    min-height: 2.4rem;
-    margin-bottom: 0.75rem;
+    justify-content: space-between;
+    margin-bottom: 1rem;
   }
 
-  .hint,
-  .sep,
+  .muted,
   .narration {
-    color: var(--text-color-lightest);
+    font-weight: normal;
+    color: var(--qb-muted);
   }
 
-  .picker {
-    min-width: 16rem;
+  a.button {
+    display: inline-flex;
+    gap: 0.4rem;
+    align-items: center;
+  }
+
+  .accounts {
+    display: flex;
+    gap: 0.75rem;
+    padding-bottom: 0.25rem;
+    margin-bottom: 1rem;
+    overflow-x: auto;
+  }
+
+  .account-card {
+    display: flex;
+    flex: 0 0 auto;
+    flex-direction: column;
+    gap: 0.15rem;
+    min-width: 12.5rem;
+    padding: 0.85rem 1rem;
+    font-weight: normal;
+    color: var(--text-color);
+    text-align: left;
+    background: var(--qb-surface);
+    border: 1px solid var(--border-lighter);
+    border-top: 3px solid transparent;
+    border-radius: var(--qb-radius);
+    box-shadow: var(--qb-shadow);
+  }
+
+  .account-card.active {
+    border-top-color: var(--qb-accent);
+  }
+
+  .card-label {
+    display: flex;
+    gap: 0.4rem;
+    align-items: center;
+    font-weight: 600;
+  }
+
+  .account-card strong {
+    font-size: 1.5rem;
+    font-weight: 650;
+  }
+
+  .account-card .muted {
+    font-size: 0.82rem;
   }
 
   .table-card {
@@ -249,27 +359,52 @@
     overflow-x: auto;
   }
 
-  table {
-    --table-background-even: transparent;
+  .toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 0.9rem;
+    align-items: center;
+    min-height: 3.25rem;
+    padding: 0.5rem 1rem;
+    border-bottom: 1px solid var(--border);
+  }
 
+  .toolbar.batch {
+    background: var(--qb-accent-soft);
+  }
+
+  .tab {
+    padding-bottom: 0.2rem;
+    font-weight: 600;
+    border-bottom: 2px solid var(--qb-accent);
+  }
+
+  .count {
+    padding: 0 0.45rem;
+    margin-left: 0.2rem;
+    font-size: 0.8em;
+    color: var(--qb-accent);
+    background: var(--qb-accent-soft);
+    border-radius: 999px;
+  }
+
+  .picker {
+    min-width: 15rem;
+  }
+
+  table {
     width: 100%;
     margin: 0;
     border: none;
   }
 
-  th,
-  td {
-    padding: 0.5em 0.75em;
-    vertical-align: middle;
-    border: none;
-    border-bottom: 1px solid var(--border);
+  th {
+    text-align: left;
+    white-space: nowrap;
   }
 
-  th {
-    font-weight: 500;
-    color: var(--text-color-lighter);
-    text-align: left;
-    background: var(--background-darker);
+  td {
+    vertical-align: middle;
   }
 
   tr.selected td {
@@ -286,36 +421,78 @@
   }
 
   .num {
-    font-family: var(--font-family-monospaced);
     text-align: right;
+  }
+
+  .received {
+    color: var(--diff-positive);
   }
 
   td a {
     color: inherit;
   }
 
-  td a strong {
-    font-weight: 500;
+  .table-card td a strong {
+    font-weight: 600;
   }
 
   .narration {
     display: block;
-    font-size: 0.9em;
+    font-size: 0.88em;
   }
 
   .category {
-    min-width: 14rem;
+    min-width: 15rem;
   }
 
-  .split {
-    color: var(--text-color-lightest);
+  /* Category boxes read as text until hovered or focused. */
+  .category :global(input) {
+    background: transparent;
+    border-color: transparent;
+  }
+
+  tr:hover .category :global(input),
+  .category :global(input:focus) {
+    background: var(--qb-surface);
+    border-color: var(--border-darker);
+  }
+
+  .chip {
+    display: inline-block;
+    padding: 0.1rem 0.6rem;
+    font-size: 0.85em;
+    color: var(--text-color-lighter);
+    background: var(--background-darker);
+    border-radius: 999px;
+  }
+
+  .action-col {
+    width: 1px;
+    text-align: right;
+  }
+
+  .small {
+    padding: 0.3em 1em;
+    font-size: 0.9em;
+  }
+
+  .empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 3rem 1rem;
+    text-align: center;
+  }
+
+  .empty-icon {
+    color: var(--qb-accent);
   }
 
   .empty h2 {
-    margin-top: 0;
+    margin: 0.5rem 0 0.25rem;
   }
 
   .empty p {
-    margin-bottom: 0;
+    margin: 0;
   }
 </style>

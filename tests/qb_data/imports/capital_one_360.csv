@@ -1,0 +1,3 @@
+Account Number,Transaction Description,Transaction Date,Transaction Type,Transaction Amount,Balance
+1234,Deposit from ACME DENTAL,10/11/26,Credit,900.00,3400.00
+1234,Debit Card Purchase - GITHUB,10/04/26,Debit,21.00,2500.00

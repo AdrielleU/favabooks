@@ -1,0 +1,6 @@
+automatic_payout_effective_at,automatic_payout_id,available_on,balance_transaction_id,created,currency,description,fee,gross,net,reporting_category,customer_name,customer_email,invoice_id
+2026-10-06 00:00:00,po_1A,2026-10-05 00:00:00,txn_1,2026-10-03 14:22:01,usd,Invoice 10-03,44.80,1500.00,1455.20,charge,Acme Dental,billing@acme.example,in_1
+2026-10-06 00:00:00,po_1A,2026-10-05 00:00:00,txn_2,2026-10-04 09:10:00,usd,Refund for partial,0.00,-100.00,-100.00,refund,Acme Dental,billing@acme.example,in_1
+2026-10-06 00:00:00,po_1A,2026-10-05 00:00:00,txn_3,2026-10-04 12:00:00,usd,Billing - Usage Fee,0.00,-15.00,-15.00,fee,,,
+2026-10-13 00:00:00,po_2B,2026-10-12 00:00:00,txn_4,2026-10-09 16:45:00,usd,Dispute,15.00,-900.00,-915.00,dispute,Northwind Cafe,,in_2
+2026-10-13 00:00:00,po_2B,2026-10-12 00:00:00,txn_5,2026-10-10 11:00:00,usd,Payout,0.00,-500.00,-500.00,payout,,,

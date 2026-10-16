@@ -96,6 +96,7 @@ CLIENT_SIDE_REPORTS = [
     "qb_vendors",
     "qb_bills",
     "qb_exports",
+    "qb_banks",
     # qb-fork: end
 ]
 

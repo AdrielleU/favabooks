@@ -1,0 +1,2 @@
+option "title" "QB Import Missing"
+2026-01-01 custom "fava-option" "import-config" "nope.py"

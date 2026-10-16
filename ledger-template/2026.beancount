@@ -711,3 +711,6 @@
 2026-09-01 balance Assets:Stripe             11940.90 USD
 2026-10-01 balance Assets:Bank:Checking       4623.26 USD
 2026-10-01 balance Assets:Stripe             13105.80 USD
+
+; Imports from the Import files page are inserted above this line.
+2026-01-01 custom "fava-option" "insert-entry" ".*"

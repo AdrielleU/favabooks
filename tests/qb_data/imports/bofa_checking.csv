@@ -1,0 +1,10 @@
+Description,,Summary Amt.
+Beginning balance as of 10/01/2026,,"5,000.00"
+Total credits,,"1,200.00"
+Total debits,,-315.25
+Ending balance as of 10/15/2026,,"5,884.75"
+
+Date,Description,Amount,Running Bal.
+10/01/2026,Beginning balance as of 10/01/2026,,"5,000.00"
+10/03/2026,"ZELLE PAYMENT FROM ACME DENTAL","1,200.00","6,200.00"
+10/09/2026,"COMCAST BUSINESS",-315.25,"5,884.75"
