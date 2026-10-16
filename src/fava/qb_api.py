@@ -81,12 +81,21 @@ def _month_start(day: datetime.date, offset: int = 0) -> datetime.date:
 def _anchor_date() -> datetime.date:
     """The day whose month the dashboard shows.
 
-    The last day of the header's time filter if one is set, otherwise today.
+    The last day of the header's time filter if one is set; otherwise the
+    latest transaction's date (or today, if that is earlier), so books whose
+    data ends in an earlier year open on their last month, not an empty one.
     """
     date_range = g.filtered.date_range
     if date_range is not None:
         return date_range.end - datetime.timedelta(days=1)
-    return local_today()
+    txns = g.ledger.all_entries_by_type.Transaction
+    return min([local_today(), *(txn.date for txn in txns[-1:])])
+
+
+def _data_years() -> list[int]:
+    """Years that have transactions, newest first (none before the data)."""
+    years = {txn.date.year for txn in g.ledger.all_entries_by_type.Transaction}
+    return sorted(years, reverse=True)
 
 
 def _operating_currency(ledger: FavaLedger) -> str:
@@ -564,6 +573,14 @@ def get_qb_register(account_name: str) -> QbRegister:
     )
 
 
+class QbExports(Struct, frozen=True):
+    """The year's report queries and the years there is data for."""
+
+    year: int
+    years: list[int]
+    exports: list[QbExport]
+
+
 class QbExport(Struct, frozen=True):
     """A report download: run `query` via download-query as CSV or XLSX."""
 
@@ -574,12 +591,16 @@ class QbExport(Struct, frozen=True):
 
 
 @api_endpoint
-def get_qb_exports(year: int) -> list[QbExport]:
+def get_qb_exports(year: int = 0) -> QbExports:
     """BQL for the year-end reports an accountant asks for.
+
+    `year` defaults to the latest year with transactions.
 
     Dates are in the query itself, because download-query ignores the
     header filters (upstream issue #1882).
     """
+    years = _data_years()
+    year = year or next(iter(years), local_today().year)
     options = g.ledger.options
     begin = datetime.date(year, 1, 1)
     end = datetime.date(year + 1, 1, 1)
@@ -593,7 +614,7 @@ def get_qb_exports(year: int) -> list[QbExport]:
             options["name_equity"],
         )
     )
-    return [
+    exports = [
         QbExport(
             "trial_balance",
             "Trial balance",
@@ -627,6 +648,7 @@ def get_qb_exports(year: int) -> list[QbExport]:
             f"cost(position) AS amount {period} ORDER BY account, date",
         ),
     ]
+    return QbExports(year, years, exports)
 
 
 # --- Bank formats and configured importers ---------------------------------

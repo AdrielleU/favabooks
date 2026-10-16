@@ -19,6 +19,9 @@ and bug reports are welcome as GitHub issues.
   One, Citi, U.S. Bank, Amex, Discover, Mercury, plus unverified Bluevine,
   Relay, Novo and PNC) and a Stripe payout importer
 - [x] Bank formats page with a config snippet builder
+- [x] Expense spreadsheet import with column mapping and receipt filing (like
+  QuickBooks' file upload and receipts)
+- [x] Year menus and the dashboard follow the years the books have data for
 - [x] Demo company ledger, CI, Docker image on ghcr.io, tagged releases
 
 ## Next: finish Phase 1

@@ -27,6 +27,8 @@ What Favabooks adds
   CSV or XLSX for a chosen year
 - Bank and card CSV importers for major US banks, Mercury and others, plus a
   Stripe payout importer (``fava.qb_importers``), with a Bank formats page
+- Expense spreadsheet import with column mapping, linked receipts filed under
+  each expense account
 - Placeholders for screens in progress (reconcile, customers, vendors, …)
 
 See `ROADMAP.md <ROADMAP.md>`__ for what's next.

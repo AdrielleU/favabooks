@@ -200,7 +200,14 @@ export type QbPostingRow = ValidationT<typeof qb_posting_row>;
 export type QbPostings = ValidationT<typeof qb_postings>;
 export type QbRegister = ValidationT<typeof qb_register>;
 export type QbRegisterRow = ValidationT<typeof qb_register_row>;
+const qb_exports = object({
+  year: number,
+  years: array(number),
+  exports: array(qb_export),
+});
+
 export type QbExport = ValidationT<typeof qb_export>;
+export type QbExports = ValidationT<typeof qb_exports>;
 
 /** Search for bulk reclassify: postings to exactly one account. */
 export const get_qb_postings = async (
@@ -218,10 +225,10 @@ export const get_qb_register = async (params: {
   time: string;
 }): Promise<QbRegister> => qb_get("qb_register", params, qb_register);
 
-/** Year-end report queries to download as CSV or XLSX. */
+/** Year-end report queries; `year` "" means the latest year with data. */
 export const get_qb_exports = async (params: {
   year: string;
-}): Promise<QbExport[]> => qb_get("qb_exports", params, array(qb_export));
+}): Promise<QbExports> => qb_get("qb_exports", params, qb_exports);
 
 const qb_bank_format = object({
   key: string,

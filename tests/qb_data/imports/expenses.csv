@@ -1,0 +1,7 @@
+Date,Vendor,Product/Plan,Invoice #,Amount,Card (last 4),Category,Business / Venture,Receipt File
+2026-01-05,Cloud Co,VM hosting,INV-1,24.00,4242,Cloud,Sample Studio,cloudco_2026_01.pdf
+2026-01-09,Paper Shop,Printer paper,,12.50,,Office,Sample Studio, paper_2026_01.pdf
+2026-02-01,Ads Inc,Campaign,A-9,40.00,PayPal,Marketing,Side Project (Beta),
+2026-02-03,Gadget Store,Keyboard,G-1,30.00,4242 + gift card,Equipment,Sample Studio,gadget.pdf
+TOTAL,,,,106.50,,,,
+2026-02-05,Bad Amount,,,abc,,,,

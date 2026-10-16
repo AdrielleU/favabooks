@@ -2,15 +2,17 @@
   import { url_for } from "../../helpers.ts";
   import { router } from "../../router.ts";
   import { HAVE_EXCEL } from "../../stores/index.ts";
-  import type { QbExport } from "../api.ts";
+  import type { QbExports } from "../api.ts";
 
-  let { year, exports }: { year: number; exports: QbExport[] } = $props();
+  let { data }: { data: QbExports } = $props();
 
-  const this_year = new Date().getFullYear();
+  // Only years the books have transactions in, newest first.
+  let year = $derived(data.year);
+  let exports = $derived(data.exports);
   let years = $derived(
-    [
-      ...new Set([year, ...Array.from({ length: 6 }, (_, i) => this_year - i)]),
-    ].toSorted((a, b) => b - a),
+    data.years.includes(year) || data.years.length === 0
+      ? data.years
+      : [year, ...data.years].toSorted((a, b) => b - a),
   );
 
   function pick_year(event: Event) {
@@ -22,6 +24,10 @@
     router.navigate(url);
   }
 </script>
+
+{#if data.years.length === 0}
+  <p class="hint">No transactions yet: import some first.</p>
+{/if}
 
 <div class="head">
   <label>

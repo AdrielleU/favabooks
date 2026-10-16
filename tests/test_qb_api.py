@@ -86,13 +86,15 @@ def test_dashboard_month_from_time_filter(qb_client: FlaskClient) -> None:
     assert data["error_count"] == 0
 
 
-def test_dashboard_defaults_to_today(qb_client: FlaskClient) -> None:
+def test_dashboard_defaults_to_latest_data(qb_client: FlaskClient) -> None:
     data = get_dashboard(qb_client)
     assert isinstance(data, dict)
 
+    # No time filter: the month of the last transaction (2026-04-02), not
+    # today's month, which has no data.
     this_month = data["this_month"]
     assert isinstance(this_month, dict)
-    assert this_month["month"] >= "2026-10"
+    assert this_month["month"] == "2026-04"
     assert data["review_count"] == 2
 
 
@@ -392,8 +394,15 @@ def test_register(qb_client: FlaskClient) -> None:
 
 
 def test_exports(qb_client: FlaskClient) -> None:
-    status, data = get_json(qb_client, "qb_exports", year=2026)
+    status, data = get_json(qb_client, "qb_exports")
     assert status == HTTPStatus.OK.value
+    assert isinstance(data, dict)
+    # Only years with transactions; the latest is the default.
+    assert (data["year"], data["years"]) == (2026, [2026])
+    _, other_year = get_json(qb_client, "qb_exports", year=2025)
+    assert isinstance(other_year, dict)
+    assert other_year["year"] == 2025
+    data = data["exports"]
     assert isinstance(data, list)
     assert [e["key"] for e in data] == [
         "trial_balance",
@@ -401,7 +410,7 @@ def test_exports(qb_client: FlaskClient) -> None:
         "balance_sheet",
         "general_ledger",
     ]
-    assert "2027-01-01" in data[0]["query"]
+    assert "2026-01-01" in data[0]["query"]
     for export in data:
         response = qb_client.get(
             "/qb-example/api/query",
