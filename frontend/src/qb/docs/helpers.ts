@@ -1,6 +1,6 @@
 /**
- * qb-fork: pure helpers for the Invoices and Customers pages (no DOM
- * imports, so they can be unit tested).
+ * qb-fork: pure helpers for the Invoices/Bills and Customers/Vendors pages
+ * (no DOM imports, so they can be unit tested).
  */
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -70,18 +70,23 @@ export function summary(
 }
 
 /** CSV columns the import maps: [field, label, required]. */
-export const CSV_FIELDS: readonly [string, string, boolean][] = [
-  ["number", "Invoice number", true],
-  ["customer", "Customer", true],
-  ["date", "Invoice date", true],
-  ["amount", "Total", true],
-  ["due", "Due date", false],
-  ["paid", "Amount paid", false],
-  ["paid_date", "Date paid", false],
-  ["status", "Status", false],
-  ["email", "Customer email", false],
-  ["currency", "Currency", false],
-];
+export function csv_fields(
+  doc_title: string,
+  party_title: string,
+): [string, string, boolean][] {
+  return [
+    ["number", `${doc_title} number`, true],
+    ["party", party_title, true],
+    ["date", `${doc_title} date`, true],
+    ["amount", "Total", true],
+    ["due", "Due date", false],
+    ["paid", "Amount paid", false],
+    ["paid_date", "Date paid", false],
+    ["status", "Status", false],
+    ["email", `${party_title} email`, false],
+    ["currency", "Currency", false],
+  ];
+}
 
 /** "YYYY-MM-DD" plus `days` days. */
 export function add_days(iso: string, days: number): string {

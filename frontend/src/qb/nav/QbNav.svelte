@@ -194,8 +194,8 @@
 />
 {#if is_open("expenses")}
   <ul class="navigation">
-    <QbLink report="qb_vendors" name="Vendors" soon />
-    <QbLink report="qb_bills" name="Bills" soon />
+    <QbLink report="qb_vendors" name="Vendors" />
+    <QbLink report="qb_bills" name="Bills" />
   </ul>
 {/if}
 

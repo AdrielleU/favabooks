@@ -30,10 +30,4 @@ export const wip_routes = [
     "Close books",
     "Lock a period so entries on or before the date can't be edited.",
   ),
-  wip_route(
-    "qb_vendors",
-    "Vendors",
-    "Everyone you have paid, from vendor: metadata, with 1099 totals.",
-  ),
-  wip_route("qb_bills", "Bills", "Bills to pay, with A/P aging."),
 ];

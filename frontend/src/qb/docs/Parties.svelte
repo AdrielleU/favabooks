@@ -1,57 +1,54 @@
 <!--
-  qb-fork: Customers. Everyone who has paid you or owes you, from invoices
-  and income transactions (`customer:` metadata, or the payee).
+  qb-fork: Customers or Vendors. Everyone you've sold to or paid, from
+  invoices and bills and from income and expense transactions.
 -->
 <script lang="ts">
   import { url_for } from "../../helpers.ts";
-  import type { QbCustomer } from "../api.ts";
+  import type { QbParty } from "../api.ts";
   import { money, short_date } from "../format.ts";
   import Icon from "../Icon.svelte";
+  import { leaf } from "../transactions/helpers.ts";
+  import type { SideText } from "./sides.ts";
 
-  let { customers }: { customers: QbCustomer[] } = $props();
+  let { text, parties }: { text: SideText; parties: QbParty[] } = $props();
 
   let query = $state("");
   let only_owing = $state(false);
 
-  let currency = $derived(customers[0]?.currency ?? "USD");
-  const cents = (list: QbCustomer[], pick: (c: QbCustomer) => number) =>
-    list.reduce((sum, c) => sum + Math.round(pick(c) * 100), 0) / 100;
-  let open_total = $derived(cents(customers, (c) => c.open_balance));
-  let overdue_total = $derived(cents(customers, (c) => c.overdue));
-  let sales_total = $derived(cents(customers, (c) => c.sales));
+  let currency = $derived(parties[0]?.currency ?? "USD");
+  const cents = (list: QbParty[], pick: (p: QbParty) => number) =>
+    list.reduce((sum, p) => sum + Math.round(pick(p) * 100), 0) / 100;
+  let open_total = $derived(cents(parties, (p) => p.open_balance));
+  let overdue_total = $derived(cents(parties, (p) => p.overdue));
+  let total = $derived(cents(parties, (p) => p.total));
   let rows = $derived(
-    customers.filter(
-      (c) =>
-        (!only_owing || c.open_balance > 0) &&
-        `${c.name} ${c.email}`
+    parties.filter(
+      (p) =>
+        (!only_owing || p.open_balance > 0) &&
+        `${p.name} ${p.email} ${p.category}`
           .toLowerCase()
           .includes(query.trim().toLowerCase()),
     ),
   );
+  let docs_url = $derived(`${text.docs_report}/` as const);
 </script>
 
-<p class="intro muted">
-  Customers come from your invoices and income: the <code>customer</code> on Stripe
-  sales and recorded invoices, or the payee of a deposit filed as income.
-</p>
+<p class="intro muted">{text.parties_intro}</p>
 
 <div class="cards">
   <div class="qb-card stat">
-    <span>Customers</span>
-    <strong>{customers.length}</strong>
+    <span>{text.parties_title}</span>
+    <strong>{parties.length}</strong>
   </div>
   <div class="qb-card stat">
-    <span>Total sales</span>
-    <strong>{money(sales_total, currency)}</strong>
+    <span>{text.total_label}</span>
+    <strong>{money(total, currency)}</strong>
   </div>
-  <a class="qb-card stat" href={$url_for("qb_invoices/", { status: "unpaid" })}>
+  <a class="qb-card stat" href={$url_for(docs_url, { status: "unpaid" })}>
     <span>Open balance</span>
     <strong>{money(open_total, currency)}</strong>
   </a>
-  <a
-    class="qb-card stat"
-    href={$url_for("qb_invoices/", { status: "overdue" })}
-  >
+  <a class="qb-card stat" href={$url_for(docs_url, { status: "overdue" })}>
     <span>Overdue</span>
     <strong class:negative={overdue_total > 0}
       >{money(overdue_total, currency)}</strong
@@ -59,14 +56,19 @@
   </a>
 </div>
 
-{#if customers.length}
+{#if parties.length}
   <div class="toolbar">
     <label class="search">
       <Icon name="search" size={16} />
-      <input type="search" placeholder="Search customers…" bind:value={query} />
+      <input
+        type="search"
+        placeholder="Search {text.parties_title.toLowerCase()}…"
+        bind:value={query}
+      />
     </label>
     <label class="owing">
-      <input type="checkbox" bind:checked={only_owing} /> Only customers who owe you
+      <input type="checkbox" bind:checked={only_owing} />
+      {text.owing_label}
     </label>
   </div>
 
@@ -74,37 +76,41 @@
     <table>
       <thead>
         <tr>
-          <th>Customer</th>
-          <th class="num">Invoices</th>
-          <th class="num">Sales</th>
+          <th>{text.party_title}</th>
+          <th>Usual category</th>
+          <th class="num">{text.docs_title}</th>
+          <th class="num">{text.side === "invoice" ? "Sales" : "Spent"}</th>
           <th class="num">Open balance</th>
           <th class="num">Overdue</th>
           <th>Last activity</th>
         </tr>
       </thead>
       <tbody>
-        {#each rows as c (c.name)}
+        {#each rows as p (p.name)}
           <tr>
             <td>
-              <a
-                class="cust-link"
-                href={$url_for("qb_invoices/", { customer: c.name })}
-                ><strong class="cust-name">{c.name}</strong></a
+              <a class="cust-link" href={$url_for(docs_url, { party: p.name })}
+                ><strong class="cust-name">{p.name}</strong></a
               >
-              {#if c.email}<span class="muted sub">{c.email}</span>{/if}
+              {#if p.email}<span class="muted sub">{p.email}</span>{/if}
             </td>
-            <td class="num">{c.invoices || "—"}</td>
-            <td class="num">{money(c.sales, c.currency)}</td>
+            <td class="muted" title={p.category}>{leaf(p.category)}</td>
+            <td class="num">{p.docs || "—"}</td>
+            <td class="num">{money(p.total, p.currency)}</td>
             <td class="num">
-              {c.open_balance ? money(c.open_balance, c.currency) : "—"}
+              {p.open_balance ? money(p.open_balance, p.currency) : "—"}
             </td>
-            <td class="num" class:negative={c.overdue > 0}>
-              {c.overdue ? money(c.overdue, c.currency) : "—"}
+            <td class="num" class:negative={p.overdue > 0}>
+              {p.overdue ? money(p.overdue, p.currency) : "—"}
             </td>
-            <td class="nowrap">{short_date(c.last_date)}</td>
+            <td class="nowrap">{short_date(p.last_date)}</td>
           </tr>
         {:else}
-          <tr><td colspan="6" class="muted">No customers match.</td></tr>
+          <tr
+            ><td colspan="7" class="muted"
+              >No {text.parties_title.toLowerCase()} match.</td
+            ></tr
+          >
         {/each}
       </tbody>
     </table>
@@ -112,13 +118,10 @@
 {:else}
   <div class="qb-card empty">
     <span class="big-icon"><Icon name="users" size={28} /></span>
-    <h2>No customers yet</h2>
-    <p class="muted">
-      Customers appear when you import Stripe payouts, import or record
-      invoices, or file a deposit as income.
-    </p>
-    <a class="button qb-primary" href={$url_for("qb_invoices/")}
-      >Go to Invoices</a
+    <h2>No {text.parties_title.toLowerCase()} yet</h2>
+    <p class="muted">{text.parties_empty}</p>
+    <a class="button qb-primary" href={$url_for(docs_url)}
+      >Go to {text.docs_title}</a
     >
   </div>
 {/if}

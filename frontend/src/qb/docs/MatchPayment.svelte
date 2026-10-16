@@ -1,41 +1,48 @@
 <!--
-  qb-fork: match an invoice to the deposit that paid it. The deposit's
-  income or uncategorized line moves to Accounts Receivable.
+  qb-fork: match an invoice or bill to the deposit or payment that settled
+  it. That transaction's category moves to Accounts Receivable/Payable.
 -->
 <script lang="ts">
   import { url_for } from "../../helpers.ts";
   import ModalBase from "../../modals/ModalBase.svelte";
   import { notify, notify_err } from "../../notifications.ts";
-  import type { QbDeposit, QbInvoice } from "../api.ts";
-  import { get_qb_invoice_deposits, put_qb_invoice_payment } from "../api.ts";
+  import type { QbDoc, QbPayment } from "../api.ts";
+  import { get_qb_doc_payments, put_qb_doc_payment } from "../api.ts";
   import { money, short_date } from "../format.ts";
   import { leaf } from "../transactions/helpers.ts";
+  import type { SideText } from "./sides.ts";
 
   let {
-    invoice,
+    text,
+    doc,
     onclose,
     ondone,
-  }: { invoice: QbInvoice; onclose: () => void; ondone: () => void } = $props();
+  }: {
+    text: SideText;
+    doc: QbDoc;
+    onclose: () => void;
+    ondone: () => void;
+  } = $props();
 
-  let deposits = $state<QbDeposit[] | null>(null);
+  let payments = $state<QbPayment[] | null>(null);
   let busy = $state(false);
 
   $effect(() => {
-    get_qb_invoice_deposits(invoice.number).then(
+    get_qb_doc_payments(text.side, doc.key).then(
       (found) => {
-        deposits = found;
+        payments = found;
       },
       (error: unknown) => {
         notify_err(error);
-        deposits = [];
+        payments = [];
       },
     );
   });
 
-  async function match(deposit: QbDeposit) {
+  async function match(payment: QbPayment) {
     busy = true;
     try {
-      notify(await put_qb_invoice_payment(invoice.number, deposit.entry_hash));
+      notify(await put_qb_doc_payment(text.side, doc.key, payment.entry_hash));
       ondone();
     } catch (error) {
       notify_err(error);
@@ -49,18 +56,19 @@
   <div class="dialog">
     <h2>Match a payment</h2>
     <p class="muted">
-      Invoice <strong>{invoice.number}</strong> for {invoice.customer}:
-      <strong>{money(invoice.balance, invoice.currency)}</strong> still due. Pick
-      the deposit that paid it. Its category becomes Accounts Receivable, so the money
-      isn't counted as income twice.
+      {text.docs_title.slice(0, -1)}
+      <strong>{doc.number}</strong>
+      {text.side === "invoice" ? "for" : "from"}
+      {doc.party}:
+      <strong>{money(doc.balance, doc.currency)}</strong> still due. Pick the
+      {text.payment} that paid it. {text.match_intro}
     </p>
-    {#if deposits === null}
-      <p class="muted">Looking for deposits…</p>
-    {:else if deposits.length === 0}
+    {#if payments === null}
+      <p class="muted">Looking for {text.payment}s…</p>
+    {:else if payments.length === 0}
       <p class="empty">
-        No matching deposits yet. Import the bank or Stripe statement with this
-        payment in <a href={$url_for("import/")}>Import files</a>, then come
-        back.
+        No matching {text.payment}s yet.
+        <a href={$url_for("import/")}>{text.match_empty}</a>
       </p>
     {:else}
       <div class="list">
@@ -68,34 +76,34 @@
           <thead>
             <tr>
               <th>Date</th>
-              <th>Deposit</th>
-              <th>Into</th>
+              <th>Transaction</th>
+              <th>{text.side === "invoice" ? "Into" : "From"}</th>
               <th class="num">Amount</th>
               <th></th>
             </tr>
           </thead>
           <tbody>
-            {#each deposits as d (d.entry_hash)}
-              <tr class:exact={d.exact}>
-                <td class="nowrap">{short_date(d.date)}</td>
+            {#each payments as p (p.entry_hash)}
+              <tr class:exact={p.exact}>
+                <td class="nowrap">{short_date(p.date)}</td>
                 <td>
-                  <strong>{d.payee || d.narration}</strong>
-                  {#if d.payee && d.narration}<span class="muted sub"
-                      >{d.narration}</span
+                  <strong>{p.payee || p.narration}</strong>
+                  {#if p.payee && p.narration}<span class="muted sub"
+                      >{p.narration}</span
                     >{/if}
-                  <span class="muted sub">now in {leaf(d.category)}</span>
+                  <span class="muted sub">now in {leaf(p.category)}</span>
                 </td>
-                <td>{leaf(d.account)}</td>
+                <td>{leaf(p.account)}</td>
                 <td class="num">
-                  {money(d.amount, d.currency)}
-                  {#if d.exact}<span class="tag">Exact amount</span>{/if}
+                  {money(p.amount, p.currency)}
+                  {#if p.exact}<span class="tag">Exact amount</span>{/if}
                 </td>
                 <td>
                   <button
                     type="button"
-                    class={d.exact ? "qb-primary small" : "qb-secondary small"}
+                    class={p.exact ? "qb-primary small" : "qb-secondary small"}
                     disabled={busy}
-                    onclick={async () => match(d)}>Match</button
+                    onclick={async () => match(p)}>Match</button
                   >
                 </td>
               </tr>

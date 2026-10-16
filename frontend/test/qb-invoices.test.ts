@@ -3,11 +3,12 @@ import { test } from "node:test";
 
 import {
   add_days,
+  csv_fields,
   days_between,
   in_tab,
   status_label,
   summary,
-} from "../src/qb/invoices/helpers.ts";
+} from "../src/qb/docs/helpers.ts";
 
 const d = (iso: string) => new Date(`${iso}T00:00:00Z`);
 
@@ -41,4 +42,10 @@ test("summary in cents", () => {
     ),
     { overdue: 1010, not_due: 750, paid_30: 10000 },
   );
+});
+
+test("csv fields", () => {
+  const fields = csv_fields("Bill", "Vendor");
+  deepEqual(fields[0], ["number", "Bill number", true]);
+  deepEqual(fields[1], ["party", "Vendor", true]);
 });

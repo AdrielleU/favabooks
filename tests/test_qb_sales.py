@@ -10,7 +10,8 @@ import pytest
 from beancount import loader
 
 from fava.application import create_app
-from fava.qb_sales import guess_mapping
+from fava.qb_docs import guess_mapping
+from fava.qb_docs import SALES
 
 if TYPE_CHECKING:  # pragma: no cover
     from pathlib import Path
@@ -79,7 +80,7 @@ in_2,Bolt Labs,,2026-03-04 09:30,,250.00,250.00,paid,usd
 @pytest.fixture
 def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> FlaskClient:
     monkeypatch.setattr(
-        "fava.qb_sales.local_today", lambda: datetime.date(2026, 3, 10)
+        "fava.qb_docs.local_today", lambda: datetime.date(2026, 3, 10)
     )
     ledger = tmp_path / "sales.beancount"
     ledger.write_text(LEDGER)
@@ -114,27 +115,27 @@ def error(
 
 
 def invoices(client: FlaskClient) -> dict[str, dict[str, Any]]:
-    return {
-        i["number"]: i for i in ok(client, "get", "qb_invoices")["invoices"]
-    }
+    return {i["key"]: i for i in ok(client, "get", "qb_invoices")["docs"]}
 
 
 def record(client: FlaskClient, **kw: str) -> Any:  # noqa: ANN401
     form = {
-        "customer": "Acme Dental",
+        "party": "Acme Dental",
         "number": "INV-1",
         "date": "2026-02-20",
         "amount": "400",
-        "income_account": "Income:Services",
+        "account": "Income:Services",
         **kw,
     }
-    return call(client, "put", "qb_invoice", invoice=form)
+    return call(client, "put", "qb_invoice", doc=form)
 
 
 def test_guess_mapping() -> None:
-    assert guess_mapping(["No.", "Customer", "Date", "Amount", "Name"]) == {
+    assert guess_mapping(
+        SALES, ["No.", "Customer", "Date", "Amount", "Name"]
+    ) == {
         "number": "No.",
-        "customer": "Customer",
+        "party": "Customer",
         "date": "Date",
         "amount": "Amount",
     }
@@ -142,16 +143,16 @@ def test_guess_mapping() -> None:
 
 def test_stripe_sale_is_a_paid_invoice(client: FlaskClient) -> None:
     data = ok(client, "get", "qb_invoices")
-    assert data["ar_account"] == "Assets:AccountsReceivable"
-    assert data["income_accounts"] == ["Income:Services"]
-    (stripe,) = data["invoices"]
+    assert data["ledger_account"] == "Assets:AccountsReceivable"
+    assert data["accounts"] == ["Income:Services"]
+    (stripe,) = data["docs"]
     assert stripe["number"] == "in_1"
-    assert (stripe["status"], stripe["source"], stripe["balance"]) == (
+    assert (stripe["status"], stripe["direct"], stripe["balance"]) == (
         "paid",
-        "stripe",
+        True,
         "0.00",
     )
-    assert stripe["customer"] == "Acme Dental"
+    assert stripe["party"] == "Acme Dental"
 
 
 def test_record_and_match(client: FlaskClient, tmp_path: Path) -> None:
@@ -163,14 +164,14 @@ def test_record_and_match(client: FlaskClient, tmp_path: Path) -> None:
     assert "due: 2026-03-22" in text
 
     inv = invoices(client)["INV-1"]
-    assert (inv["status"], inv["source"], inv["balance"]) == (
+    assert (inv["status"], inv["direct"], inv["balance"]) == (
         "open",
-        "invoice",
+        False,
         "400",
     )
     assert inv["due"] == "2026-03-22"
 
-    deposits = ok(client, "get", "qb_invoice_deposits", number="INV-1")
+    deposits = ok(client, "get", "qb_invoice_payments", key="INV-1")
     assert [(d["payee"], d["exact"]) for d in deposits] == [
         ("ACME DENTAL", True),
         ("Someone", True),
@@ -180,7 +181,7 @@ def test_record_and_match(client: FlaskClient, tmp_path: Path) -> None:
         client,
         "put",
         "qb_invoice_payment",
-        number="INV-1",
+        key="INV-1",
         entry_hash=deposits[0]["entry_hash"],
     )
     inv = invoices(client)["INV-1"]
@@ -191,30 +192,30 @@ def test_record_and_match(client: FlaskClient, tmp_path: Path) -> None:
 
     # Partly paid, then overdue once the due date passes.
     record(client, number="INV-2", amount="1,000.00", due="2026-12-31")
-    someone = ok(client, "get", "qb_invoice_deposits", number="INV-2")
+    someone = ok(client, "get", "qb_invoice_payments", key="INV-2")
     assert [d["payee"] for d in someone] == ["Someone"]
     assert someone[0]["exact"] is False
     ok(
         client,
         "put",
         "qb_invoice_payment",
-        number="INV-2",
+        key="INV-2",
         entry_hash=someone[0]["entry_hash"],
     )
     assert invoices(client)["INV-2"]["status"] == "partial"
-    record(client, number="INV-3", due="03/01/2026", customer="Bolt Labs")
+    record(client, number="INV-3", due="03/01/2026", party="Bolt Labs")
     assert invoices(client)["INV-3"]["status"] == "overdue"
 
     customers = {c["name"]: c for c in ok(client, "get", "qb_customers")}
     acme = customers["Acme Dental"]
     assert acme["email"] == "ap@acme.test"
-    assert acme["invoices"] == 3
-    assert Decimal(acme["sales"]) == Decimal(2400)
+    assert acme["docs"] == 3
+    assert Decimal(acme["total"]) == Decimal(2400)
     assert Decimal(acme["open_balance"]) == Decimal(600)
     assert Decimal(acme["overdue"]) == 0
     assert Decimal(customers["Bolt Labs"]["overdue"]) == Decimal(400)
-    assert customers["Walk-in"]["sales"] == "50.00"
-    assert customers["(no name)"]["sales"] == "5.00"
+    assert customers["Walk-in"]["total"] == "50.00"
+    assert customers["(no name)"]["total"] == "5.00"
     assert next(iter(customers)) == "Acme Dental"
 
 
@@ -225,21 +226,21 @@ def test_record_errors(client: FlaskClient) -> None:
         return str(data["detail"])
 
     assert "already in your books" in bad(number="in_1")
-    assert "customer" in bad(customer=" ")
+    assert "customer" in bad(party=" ")
     assert "invoice number" in bad(number="")
     assert "isn't a date" in bad(date="soon")
     assert "due date" in bad(due="later")
     assert "positive" in bad(amount="-5")
-    assert "income account" in bad(income_account="Assets:Stripe")
-    assert "unknown account" in bad(income_account="Income:Nope")
+    assert "under Income" in bad(account="Assets:Stripe")
+    assert "unknown account" in bad(account="Income:Nope")
 
 
 def test_payment_errors(client: FlaskClient) -> None:
     assert "no invoice" in error(
-        client, "get", "qb_invoice_deposits", number="nope"
+        client, "get", "qb_invoice_payments", key="nope"
     )
     assert "already paid" in error(
-        client, "get", "qb_invoice_deposits", number="in_1"
+        client, "get", "qb_invoice_payments", key="in_1"
     )
     record(client, email="ap@acme.test", memo="March work")
     transfer = next(
@@ -247,11 +248,11 @@ def test_payment_errors(client: FlaskClient) -> None:
         for row in ok(client, "get", "qb_transactions")["rows"]
         if row["payee"] == "Transfer"
     )
-    assert "isn't a deposit" in error(
+    assert "isn't a payment" in error(
         client,
         "put",
         "qb_invoice_payment",
-        number="INV-1",
+        key="INV-1",
         entry_hash=transfer,
     )
     inv = invoices(client)["INV-1"]
@@ -297,10 +298,10 @@ def test_csv_import(client: FlaskClient, tmp_path: Path) -> None:
         "qb_invoice_csv_import",
         content=STRIPE_CSV,
         mapping=preview["mapping"],
-        income_account="Income:Services",
+        account="Income:Services",
         payment_account="Assets:Stripe",
     )
-    assert imported == {"invoices": 1, "payments": 1}
+    assert imported == {"docs": 1, "payments": 1}
     inv = invoices(client)["in_2"]
     assert (inv["status"], inv["amount"]) == ("paid", "250.00")
     _, errors, _ = loader.load_file(str(tmp_path / "sales.beancount"))
@@ -310,13 +311,13 @@ def test_csv_import(client: FlaskClient, tmp_path: Path) -> None:
         body = {
             "content": STRIPE_CSV,
             "mapping": preview["mapping"],
-            "income_account": "Income:Services",
+            "account": "Income:Services",
             **kw,
         }
         return error(client, "put", "qb_invoice_csv_import", **body)
 
     assert "no new invoices" in bad()
-    assert "income account" in bad(income_account="Income:Nope")
+    assert "Income account" in bad(account="Income:Nope")
     assert "unknown account" in bad(payment_account="Assets:Nope")
     assert "empty" in error(
         client, "put", "qb_invoice_csv_preview", content="\n\n"
@@ -334,15 +335,15 @@ def test_csv_import_without_payments(client: FlaskClient) -> None:
         content=csv_text,
         mapping={
             "number": "Invoice #",
-            "customer": "Client",
+            "party": "Client",
             "date": "Issue date",
             "amount": "Amount",
         },
-        income_account="Income:Services",
+        account="Income:Services",
     )
-    assert imported == {"invoices": 1, "payments": 0}
+    assert imported == {"docs": 1, "payments": 0}
     inv = invoices(client)["A-1"]
-    assert (inv["customer"], inv["status"], inv["due"]) == (
+    assert (inv["party"], inv["status"], inv["due"]) == (
         "Zed",
         "open",
         "2026-04-08",

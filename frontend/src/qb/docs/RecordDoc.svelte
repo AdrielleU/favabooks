@@ -1,39 +1,40 @@
 <!--
-  qb-fork: record an invoice sent from somewhere else (a PDF, Word, another
-  app), optionally attaching its PDF.
+  qb-fork: record an invoice sent, or a bill received, from somewhere else
+  (a PDF, another app), optionally attaching its PDF.
 -->
 <script lang="ts">
   import { put_add_document } from "../../api/index.ts";
   import ModalBase from "../../modals/ModalBase.svelte";
   import { notify, notify_err } from "../../notifications.ts";
   import { documents } from "../../stores/options.ts";
-  import type { QbInvoiceForm } from "../api.ts";
-  import { put_qb_invoice } from "../api.ts";
+  import type { QbDocForm } from "../api.ts";
+  import { put_qb_doc } from "../api.ts";
   import { add_days } from "./helpers.ts";
+  import type { SideText } from "./sides.ts";
 
   let {
-    customers,
-    income_accounts,
-    ar_account,
+    text,
+    parties,
+    accounts,
     onclose,
     ondone,
   }: {
-    customers: string[];
-    income_accounts: string[];
-    ar_account: string;
+    text: SideText;
+    parties: string[];
+    accounts: string[];
     onclose: () => void;
     ondone: () => void;
   } = $props();
 
   const today = new Date().toISOString().slice(0, 10);
 
-  let form = $state<QbInvoiceForm>({
-    customer: "",
+  let form = $state<QbDocForm>({
+    party: "",
     number: "",
     date: today,
     due: add_days(today, 30),
     amount: "",
-    income_account: "",
+    account: "",
     memo: "",
     email: "",
   });
@@ -42,35 +43,36 @@
   let busy = $state(false);
 
   $effect.pre(() => {
-    if (!form.income_account) {
-      form.income_account = income_accounts[0] ?? "";
+    if (!form.account) {
+      form.account = accounts[0] ?? "";
     }
   });
 
   let problem = $derived(
-    !form.customer.trim()
-      ? "Enter the customer."
+    !form.party.trim()
+      ? `Enter the ${text.party}.`
       : !form.number.trim()
-        ? "Enter the invoice number."
+        ? `Enter the ${text.doc} number.`
         : !form.date
-          ? "Enter the invoice date."
+          ? `Enter the ${text.doc} date.`
           : !(Number.parseFloat(form.amount.replace(/[$,]/g, "")) > 0)
-            ? "Enter the invoice total."
-            : !form.income_account
-              ? "Choose the income account."
+            ? `Enter the ${text.doc} total.`
+            : !form.account
+              ? `Choose the ${text.account_label.toLowerCase()}.`
               : "",
   );
+  let doc_title = $derived(text.docs_title.slice(0, -1));
 
   async function save(event: SubmitEvent) {
     event.preventDefault();
     busy = true;
     try {
-      const { entry_hash } = await put_qb_invoice(form);
+      const { entry_hash } = await put_qb_doc(text.side, form);
       const file = files?.[0];
       const folder = $documents[0];
       if (file !== undefined && folder !== undefined) {
         const data = new FormData();
-        data.set("account", ar_account);
+        data.set("account", form.account);
         data.set("hash", entry_hash);
         data.set("folder", folder);
         const name = /^\d{4}-\d{2}-\d{2}/.test(file.name)
@@ -79,7 +81,7 @@
         data.set("file", file, name);
         await put_add_document(data);
       }
-      notify(`Recorded invoice ${form.number}.`);
+      notify(`Recorded ${text.doc} ${form.number}.`);
       ondone();
     } catch (error) {
       notify_err(error);
@@ -91,21 +93,18 @@
 
 <ModalBase shown={true} close_handler={onclose}>
   <form class="dialog" onsubmit={save}>
-    <h2>Record an invoice</h2>
-    <p class="muted">
-      For an invoice you already sent from somewhere else. It's booked as money
-      the customer owes you (Accounts Receivable) until you match the payment.
-    </p>
+    <h2>Record {text.side === "invoice" ? "an" : "a"} {text.doc}</h2>
+    <p class="muted">{text.record_intro}</p>
     <div class="grid">
       <label class="wide">
-        <span>Customer</span>
-        <input list="qb-customers" bind:value={form.customer} required />
-        <datalist id="qb-customers">
-          {#each customers as name (name)}<option value={name}></option>{/each}
+        <span>{text.party_title}</span>
+        <input list="qb-parties" bind:value={form.party} required />
+        <datalist id="qb-parties">
+          {#each parties as name (name)}<option value={name}></option>{/each}
         </datalist>
       </label>
       <label>
-        <span>Invoice number</span>
+        <span>{doc_title} number</span>
         <input bind:value={form.number} placeholder="e.g. 1042" required />
       </label>
       <label>
@@ -118,7 +117,7 @@
         />
       </label>
       <label>
-        <span>Invoice date</span>
+        <span>{doc_title} date</span>
         <input
           type="date"
           bind:value={
@@ -147,15 +146,15 @@
         />
       </label>
       <label>
-        <span>Income account</span>
-        <select bind:value={form.income_account}>
-          {#each income_accounts as account (account)}
+        <span>{text.account_label}</span>
+        <select bind:value={form.account}>
+          {#each accounts as account (account)}
             <option value={account}>{account}</option>
           {/each}
         </select>
       </label>
       <label>
-        <span>Customer email (optional)</span>
+        <span>{text.party_title} email (optional)</span>
         <input type="email" bind:value={form.email} />
       </label>
       <label class="wide">
@@ -163,14 +162,14 @@
         <input bind:value={form.memo} placeholder="e.g. October retainer" />
       </label>
       <label class="wide">
-        <span>Invoice PDF (optional)</span>
+        <span>{doc_title} PDF (optional)</span>
         <input type="file" accept=".pdf,image/*" bind:files />
       </label>
     </div>
-    {#if !income_accounts.length}
+    {#if !accounts.length}
       <p class="warn">
-        Your ledger has no income accounts yet. Open one (e.g. Income:Services)
-        in the Editor first.
+        Your ledger has no {text.account_label.toLowerCase()}s yet. Open one in
+        the Editor first.
       </p>
     {/if}
     <div class="foot">
@@ -179,7 +178,7 @@
         >Cancel</button
       >
       <button type="submit" class="qb-primary" disabled={busy || !!problem}>
-        Save invoice
+        Save {text.doc}
       </button>
     </div>
   </form>

@@ -484,13 +484,17 @@ export const get_qb_categories = async (
 ): Promise<QbCategory[]> =>
   qb_get("qb_categories", { ...params }, array(qb_category));
 
-// --- Sales: customers and invoices ------------------------------------------
+// --- Invoices and bills, customers and vendors -----------------------------
+
+/** Which side of the books: sales (invoices) or purchases (bills). */
+export type QbSide = "invoice" | "bill";
 
 const qb_receipt = object({ name: string, filename: string });
 
-const qb_invoice = object({
+const qb_doc = object({
+  key: string,
   number: string,
-  customer: string,
+  party: string,
   date,
   due: optional(date),
   amount: decimal,
@@ -498,31 +502,34 @@ const qb_invoice = object({
   balance: decimal,
   currency: string,
   status: string,
-  source: string,
+  direct: boolean,
+  paid_with: array(string),
+  categories: array(string),
   memo: string,
   entry_hashes: array(string),
   receipts: array(qb_receipt),
 });
 
-const qb_invoices = object({
-  ar_account: string,
+const qb_docs = object({
+  ledger_account: string,
   today: date,
-  invoices: array(qb_invoice),
-  income_accounts: array(string),
+  docs: array(qb_doc),
+  accounts: array(string),
 });
 
-const qb_customer = object({
+const qb_party = object({
   name: string,
   email: string,
-  invoices: number,
-  sales: decimal,
+  docs: number,
+  total: decimal,
   open_balance: decimal,
   overdue: decimal,
   currency: string,
   last_date: date,
+  category: string,
 });
 
-const qb_deposit = object({
+const qb_payment = object({
   entry_hash: string,
   date,
   payee: string,
@@ -534,10 +541,10 @@ const qb_deposit = object({
   exact: boolean,
 });
 
-const qb_invoice_row = object({
+const qb_doc_row = object({
   line: number,
   number: string,
-  customer: string,
+  party: string,
   date: optional(date),
   due: optional(date),
   amount: optional(decimal),
@@ -550,73 +557,83 @@ const qb_invoice_row = object({
   paid_date: optional(date),
 });
 
-const qb_invoice_preview = object({
+const qb_doc_preview = object({
   header: array(string),
   mapping: record(string),
-  rows: array(qb_invoice_row),
+  rows: array(qb_doc_row),
 });
 
-export type QbInvoice = ValidationT<typeof qb_invoice>;
-export type QbInvoices = ValidationT<typeof qb_invoices>;
-export type QbCustomer = ValidationT<typeof qb_customer>;
-export type QbDeposit = ValidationT<typeof qb_deposit>;
-export type QbInvoicePreview = ValidationT<typeof qb_invoice_preview>;
+export type QbDoc = ValidationT<typeof qb_doc>;
+export type QbDocs = ValidationT<typeof qb_docs>;
+export type QbParty = ValidationT<typeof qb_party>;
+export type QbPayment = ValidationT<typeof qb_payment>;
+export type QbDocPreview = ValidationT<typeof qb_doc_preview>;
 
-/** Every invoice in the ledger. */
-export const get_qb_invoices = async (): Promise<QbInvoices> =>
-  qb_get("qb_invoices", {}, qb_invoices);
+/** Every invoice or bill in the ledger. */
+export const get_qb_docs = async (side: QbSide): Promise<QbDocs> =>
+  qb_get(side === "invoice" ? "qb_invoices" : "qb_bills", {}, qb_docs);
 
-/** Customers from invoices and income. */
-export const get_qb_customers = async (): Promise<QbCustomer[]> =>
-  qb_get("qb_customers", {}, array(qb_customer));
+/** Customers or vendors. */
+export const get_qb_parties = async (side: QbSide): Promise<QbParty[]> =>
+  qb_get(
+    side === "invoice" ? "qb_customers" : "qb_vendors",
+    {},
+    array(qb_party),
+  );
 
-/** Fields of an invoice to record. */
-export interface QbInvoiceForm {
-  customer: string;
+/** Fields of an invoice or bill to record. */
+export interface QbDocForm {
+  party: string;
   number: string;
   date: string;
   due: string;
   amount: string;
-  income_account: string;
+  account: string;
   memo: string;
   email: string;
 }
 
-/** Book one invoice; returns its entry hash (to attach the PDF to). */
-export const put_qb_invoice = async (
-  invoice: QbInvoiceForm,
+/** Book one invoice or bill; returns its entry hash (to attach the PDF). */
+export const put_qb_doc = async (
+  side: QbSide,
+  doc: QbDocForm,
 ): Promise<{ entry_hash: string }> =>
-  qb_put("qb_invoice", { invoice }, object({ entry_hash: string }));
+  qb_put(`qb_${side}`, { doc }, object({ entry_hash: string }));
 
-/** Deposits that could have paid an invoice, best match first. */
-export const get_qb_invoice_deposits = async (
-  number: string,
-): Promise<QbDeposit[]> =>
-  qb_get("qb_invoice_deposits", { number }, array(qb_deposit));
+/** Payments that could settle an invoice or bill, best match first. */
+export const get_qb_doc_payments = async (
+  side: QbSide,
+  key: string,
+): Promise<QbPayment[]> =>
+  qb_get(`qb_${side}_payments`, { key }, array(qb_payment));
 
-/** Mark a deposit as the payment for an invoice. */
-export const put_qb_invoice_payment = async (
-  number: string,
+/** Mark a transaction as the payment for an invoice or bill. */
+export const put_qb_doc_payment = async (
+  side: QbSide,
+  key: string,
   entry_hash: string,
-): Promise<string> =>
-  qb_put("qb_invoice_payment", { number, entry_hash }, string);
+): Promise<string> => qb_put(`qb_${side}_payment`, { key, entry_hash }, string);
 
-/** Read a CSV of invoices; `mapping` overrides the guessed columns. */
-export const put_qb_invoice_csv_preview = async (
+/** Read a CSV of invoices or bills; `mapping` overrides the guess. */
+export const put_qb_doc_csv_preview = async (
+  side: QbSide,
   content: string,
   mapping: Record<string, string> | null,
-): Promise<QbInvoicePreview> =>
-  qb_put("qb_invoice_csv_preview", { content, mapping }, qb_invoice_preview);
+): Promise<QbDocPreview> =>
+  qb_put(`qb_${side}_csv_preview`, { content, mapping }, qb_doc_preview);
 
-/** Book the new rows of a CSV of invoices. */
-export const put_qb_invoice_csv_import = async (body: {
-  content: string;
-  mapping: Record<string, string>;
-  income_account: string;
-  payment_account: string;
-}): Promise<{ invoices: number; payments: number }> =>
+/** Book the new rows of a CSV of invoices or bills. */
+export const put_qb_doc_csv_import = async (
+  side: QbSide,
+  body: {
+    content: string;
+    mapping: Record<string, string>;
+    account: string;
+    payment_account: string;
+  },
+): Promise<{ docs: number; payments: number }> =>
   qb_put(
-    "qb_invoice_csv_import",
+    `qb_${side}_csv_import`,
     body,
-    object({ invoices: number, payments: number }),
+    object({ docs: number, payments: number }),
   );

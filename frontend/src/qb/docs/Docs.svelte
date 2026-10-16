@@ -1,13 +1,15 @@
 <!--
-  qb-fork: Invoices. Bookkeeping for invoices sent elsewhere: import or
-  record them, see what's unpaid or overdue, and match payments.
+  qb-fork: Invoices or Bills. Bookkeeping for documents sent or received
+  elsewhere: import or record them, see what's unpaid or overdue, and match
+  payments.
 -->
 <script lang="ts">
   import { url_for, url_for_raw } from "../../helpers.ts";
   import { router } from "../../router.ts";
-  import type { QbInvoice } from "../api.ts";
+  import type { QbDoc, QbDocs } from "../api.ts";
   import { money, short_date } from "../format.ts";
   import Icon from "../Icon.svelte";
+  import { leaf } from "../transactions/helpers.ts";
   import {
     days_between,
     in_tab,
@@ -15,42 +17,56 @@
     status_label,
     summary,
   } from "./helpers.ts";
-  import ImportInvoices from "./ImportInvoices.svelte";
-  import type { InvoicesProps } from "./index.ts";
+  import ImportDocs from "./ImportDocs.svelte";
   import MatchPayment from "./MatchPayment.svelte";
-  import RecordInvoice from "./RecordInvoice.svelte";
+  import RecordDoc from "./RecordDoc.svelte";
+  import type { SideText } from "./sides.ts";
 
-  let { data, tab, customer }: InvoicesProps = $props();
+  let {
+    text,
+    data,
+    tab,
+    party,
+  }: {
+    text: SideText;
+    data: QbDocs;
+    /** Status tab ("", unpaid, overdue, paid). */
+    tab: string;
+    /** Only this customer's or vendor's documents ("" for all). */
+    party: string;
+  } = $props();
 
   let dialog = $state<"" | "import" | "record">("");
-  let matching = $state<QbInvoice | null>(null);
+  let matching = $state<QbDoc | null>(null);
   let query = $state("");
 
-  let currency = $derived(data.invoices[0]?.currency ?? "USD");
+  let currency = $derived(data.docs[0]?.currency ?? "USD");
   let mine = $derived(
-    customer
-      ? data.invoices.filter((i) => i.customer === customer)
-      : data.invoices,
+    party ? data.docs.filter((d) => d.party === party) : data.docs,
   );
   let totals = $derived(summary(mine, data.today));
   let counts = $derived(
     Object.fromEntries(
       STATUS_TABS.map(([t]) => [
         t,
-        mine.filter((i) => in_tab(i.status, t)).length,
+        mine.filter((d) => in_tab(d.status, t)).length,
       ]),
     ),
   );
   let rows = $derived(
     mine.filter(
-      (i) =>
-        in_tab(i.status, tab) &&
-        `${i.number} ${i.customer} ${i.memo}`
+      (d) =>
+        in_tab(d.status, tab) &&
+        `${d.number} ${d.party} ${d.memo} ${d.categories.join(" ")}`
           .toLowerCase()
           .includes(query.trim().toLowerCase()),
     ),
   );
-  let customers = $derived([...new Set(data.invoices.map((i) => i.customer))]);
+  let parties = $derived([...new Set(data.docs.map((d) => d.party))]);
+  let a_doc = $derived(text.side === "invoice" ? "an invoice" : "a bill");
+  let is_bill = $derived(text.side === "bill");
+  /** "Liabilities:CreditCard:Card-8360" -> "Card-8360". */
+  const last = (account: string) => account.split(":").pop() ?? account;
 
   function go(params: Record<string, string>) {
     const url = new URL(window.location.href);
@@ -72,24 +88,21 @@
 </script>
 
 <div class="page-head">
-  <p class="muted">
-    Keep track of invoices you send from Stripe, a PDF or another app. Import or
-    record them here, then match each one to the deposit that paid it.
-  </p>
+  <p class="muted">{text.docs_intro}</p>
   <div class="actions">
     <button
       type="button"
       class="qb-secondary"
       onclick={() => (dialog = "import")}
     >
-      <Icon name="upload" size={16} /> Import invoices
+      <Icon name="upload" size={16} /> Import {text.docs_title.toLowerCase()}
     </button>
     <button
       type="button"
       class="qb-primary"
       onclick={() => (dialog = "record")}
     >
-      <Icon name="plus" size={16} /> Record an invoice
+      <Icon name="plus" size={16} /> Record {a_doc}
     </button>
   </div>
 </div>
@@ -122,7 +135,7 @@
       go({ status: "paid" });
     }}
   >
-    <span>Paid, last 30 days</span>
+    <span>{text.paid_label}</span>
     <strong>{money(totals.paid_30 / 100, currency)}</strong>
   </button>
 </div>
@@ -142,14 +155,14 @@
         {label} <span class="count">{counts[t]}</span>
       </button>
     {/each}
-    {#if customer}
+    {#if party}
       <span class="filter-chip">
-        Customer: {customer}
+        {text.party_title}: {party}
         <button
           type="button"
-          aria-label="Show all customers"
+          aria-label="Show all {text.parties_title.toLowerCase()}"
           onclick={() => {
-            go({ customer: "" });
+            go({ party: "" });
           }}><Icon name="x" size={14} /></button
         >
       </span>
@@ -159,7 +172,7 @@
     <Icon name="search" size={16} />
     <input
       type="search"
-      placeholder="Search number, customer…"
+      placeholder="Search number, {text.party}…"
       bind:value={query}
     />
   </label>
@@ -172,58 +185,68 @@
         <tr>
           <th>Date</th>
           <th>No.</th>
-          <th>Customer</th>
+          <th>{text.party_title}</th>
+          {#if is_bill}<th>Category</th>{/if}
           <th>Due</th>
           <th class="num">Total</th>
           <th class="num">Balance</th>
           <th>Status</th>
-          <th class="icon-col"><span class="sr">Invoice file</span></th>
+          <th class="icon-col"><span class="sr">File</span></th>
           <th></th>
         </tr>
       </thead>
       <tbody>
-        {#each rows as inv (inv.number)}
+        {#each rows as d (d.key)}
           <tr>
-            <td class="nowrap">{short_date(inv.date)}</td>
-            <td class="nowrap">
+            <td class="nowrap">{short_date(d.date)}</td>
+            <td class="doc-no">
               <a
-                href={`#context-${inv.entry_hashes[0] ?? ""}`}
-                title="View or edit">{inv.number}</a
+                href={`#context-${d.entry_hashes[0] ?? ""}`}
+                title="View or edit">{d.number}</a
               >
             </td>
-            <td>
+            <td class="party-cell">
               <a
                 class="plain"
-                href={$url_for("qb_invoices/", { customer: inv.customer })}
-                >{inv.customer}</a
+                href={$url_for(`${text.docs_report}/`, { party: d.party })}
+                >{d.party}</a
               >
-              {#if inv.memo && !inv.memo.endsWith(inv.number)}
-                <span class="muted sub">{inv.memo}</span>
+              {#if d.memo && !d.memo.endsWith(d.number)}
+                <span class="muted sub">{d.memo}</span>
               {/if}
             </td>
+            {#if is_bill}
+              <td>
+                {#each d.categories as c (c)}
+                  <span class="cell-line" title={c}>{leaf(c)}</span>
+                {/each}
+              </td>
+            {/if}
             <td class="nowrap">
-              {#if inv.due}
-                {short_date(inv.due)}
-                {#if inv.status === "overdue"}
+              {#if d.due}
+                {short_date(d.due)}
+                {#if d.status === "overdue"}
                   <span class="late"
-                    >{days_between(inv.due, data.today)} days late</span
+                    >{days_between(d.due, data.today)} days late</span
                   >
                 {/if}
               {:else}
                 <span class="muted">—</span>
               {/if}
             </td>
-            <td class="num">{money(inv.amount, inv.currency)}</td>
-            <td class="num">{money(inv.balance, inv.currency)}</td>
+            <td class="num">{money(d.amount, d.currency)}</td>
+            <td class="num">{money(d.balance, d.currency)}</td>
             <td>
-              <span class="status {inv.status}">{status_label(inv.status)}</span
-              >
-              {#if inv.source === "stripe"}<span class="muted sub"
-                  >via Stripe</span
-                >{/if}
+              <span class="status {d.status}">{status_label(d.status)}</span>
+              {#if d.status === "paid" && d.paid_with.length}
+                <span class="muted sub paid-with" title={d.paid_with.join(", ")}
+                  >{text.paid_with_label}
+                  {d.paid_with.map(last).join(", ")}</span
+                >
+              {/if}
             </td>
             <td class="icon-col">
-              {#each inv.receipts as r (r.name)}
+              {#each d.receipts as r (r.name)}
                 {#if r.filename}
                   <a
                     class="clip"
@@ -236,11 +259,11 @@
               {/each}
             </td>
             <td class="nowrap">
-              {#if inv.status !== "paid"}
+              {#if d.status !== "paid"}
                 <button
                   type="button"
                   class="qb-secondary small"
-                  onclick={() => (matching = inv)}>Match payment</button
+                  onclick={() => (matching = d)}>Match payment</button
                 >
               {/if}
             </td>
@@ -249,56 +272,56 @@
       </tbody>
     </table>
   </div>
-{:else if data.invoices.length}
-  <p class="qb-card muted">No invoices here.</p>
+{:else if data.docs.length}
+  <p class="qb-card muted">No {text.docs_title.toLowerCase()} here.</p>
 {:else}
   <div class="qb-card empty">
     <span class="big-icon"><Icon name="receipt" size={28} /></span>
-    <h2>No invoices yet</h2>
-    <p class="muted">
-      Invoices paid through Stripe show up here on their own once you import
-      Stripe payouts (with the invoice_id column). For anything else, import
-      your invoice list as a CSV or record one invoice at a time.
-    </p>
+    <h2>No {text.docs_title.toLowerCase()} yet</h2>
+    <p class="muted">{text.docs_empty}</p>
     <div class="actions">
       <button
         type="button"
         class="qb-secondary"
-        onclick={() => (dialog = "import")}>Import invoices</button
+        onclick={() => (dialog = "import")}
+        >Import {text.docs_title.toLowerCase()}</button
       >
       <button
         type="button"
         class="qb-primary"
-        onclick={() => (dialog = "record")}>Record an invoice</button
+        onclick={() => (dialog = "record")}>Record {a_doc}</button
       >
     </div>
   </div>
 {/if}
 
 <p class="hint muted">
-  Invoices show for all dates; the Time filter doesn't apply here. Recorded and
-  imported invoices count as income on their invoice date.
+  {text.docs_title} show for all dates; the Time filter doesn't apply here. Recorded
+  and imported {text.docs_title.toLowerCase()} count as
+  {is_bill ? "expenses" : "income"} on their date.
 </p>
 
 {#if dialog === "import"}
-  <ImportInvoices
-    income_accounts={data.income_accounts}
-    ar_account={data.ar_account}
+  <ImportDocs
+    {text}
+    accounts={data.accounts}
+    ledger_account={data.ledger_account}
     onclose={() => (dialog = "")}
     ondone={done}
   />
 {:else if dialog === "record"}
-  <RecordInvoice
-    {customers}
-    income_accounts={data.income_accounts}
-    ar_account={data.ar_account}
+  <RecordDoc
+    {text}
+    {parties}
+    accounts={data.accounts}
     onclose={() => (dialog = "")}
     ondone={done}
   />
 {/if}
 {#if matching}
   <MatchPayment
-    invoice={matching}
+    {text}
+    doc={matching}
     onclose={() => (matching = null)}
     ondone={done}
   />
@@ -491,6 +514,31 @@
 
   .plain {
     color: inherit;
+  }
+
+  .cell-line {
+    display: block;
+    white-space: nowrap;
+  }
+
+  .doc-no {
+    min-width: 8rem;
+  }
+
+  .party-cell {
+    min-width: 12rem;
+    white-space: normal;
+  }
+
+  .doc-no a {
+    display: inline-block;
+    max-width: 8rem;
+    overflow-wrap: anywhere;
+    white-space: normal;
+  }
+
+  .paid-with {
+    white-space: nowrap;
   }
 
   .sub {

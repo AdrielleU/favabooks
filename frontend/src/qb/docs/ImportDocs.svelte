@@ -1,65 +1,77 @@
 <!--
-  qb-fork: import invoices from a CSV export (Stripe, QuickBooks, FreshBooks,
+  qb-fork: import invoices or bills from a CSV export (Stripe, QuickBooks,
   Wave, a spreadsheet). Columns are matched by name and can be changed;
-  invoices already in the books are skipped.
+  documents already in the books are skipped.
 -->
 <script lang="ts">
   import ModalBase from "../../modals/ModalBase.svelte";
   import { notify, notify_err } from "../../notifications.ts";
   import { accounts } from "../../stores/index.ts";
-  import { name_assets } from "../../stores/options.ts";
-  import type { QbInvoicePreview } from "../api.ts";
-  import {
-    put_qb_invoice_csv_import,
-    put_qb_invoice_csv_preview,
-  } from "../api.ts";
+  import { name_assets, name_liabilities } from "../../stores/options.ts";
+  import type { QbDocPreview } from "../api.ts";
+  import { put_qb_doc_csv_import, put_qb_doc_csv_preview } from "../api.ts";
   import { money, short_date } from "../format.ts";
-  import { CSV_FIELDS } from "./helpers.ts";
+  import { csv_fields } from "./helpers.ts";
+  import type { SideText } from "./sides.ts";
 
   let {
-    income_accounts,
-    ar_account,
+    text,
+    accounts: category_accounts,
+    ledger_account,
     onclose,
     ondone,
   }: {
-    income_accounts: string[];
-    ar_account: string;
+    text: SideText;
+    accounts: string[];
+    ledger_account: string;
     onclose: () => void;
     ondone: () => void;
   } = $props();
 
   let filename = $state("");
   let content = $state("");
-  let preview = $state<QbInvoicePreview | null>(null);
+  let preview = $state<QbDocPreview | null>(null);
   let mapping = $state<Record<string, string>>({});
-  let income_account = $state("");
+  let account = $state("");
   let record_payments = $state(false);
   let payment_account = $state("");
   let busy = $state(false);
 
   $effect.pre(() => {
-    if (!income_account) {
-      income_account = income_accounts[0] ?? "";
+    if (!account) {
+      account = category_accounts[0] ?? "";
     }
   });
 
-  let asset_accounts = $derived(
+  /** Where payments go: bank and Stripe, plus cards for bills. */
+  let money_accounts = $derived(
     $accounts.filter(
-      (a) => a.startsWith(`${$name_assets}:`) && a !== ar_account,
+      (a) =>
+        a !== ledger_account &&
+        (a.startsWith(`${$name_assets}:`) ||
+          (text.side === "bill" && a.startsWith(`${$name_liabilities}:`))),
     ),
   );
+  let doc_title = $derived(text.docs_title.slice(0, -1));
+  let fields = $derived(csv_fields(doc_title, text.party_title));
   let new_rows = $derived(preview?.rows.filter((r) => r.state === "new") ?? []);
   let paid_rows = $derived(new_rows.filter((r) => r.paid > 0));
   let missing = $derived(
-    CSV_FIELDS.filter(
-      ([field, , required]) => required && (mapping[field] ?? "") === "",
-    ).map(([, label]) => label),
+    fields
+      .filter(
+        ([field, , required]) => required && (mapping[field] ?? "") === "",
+      )
+      .map(([, label]) => label),
   );
 
   async function load(mapping_override: Record<string, string> | null) {
     busy = true;
     try {
-      preview = await put_qb_invoice_csv_preview(content, mapping_override);
+      preview = await put_qb_doc_csv_preview(
+        text.side,
+        content,
+        mapping_override,
+      );
       mapping = { ...preview.mapping };
     } catch (error) {
       notify_err(error);
@@ -77,8 +89,8 @@
     await load(null);
     if (!payment_account) {
       payment_account =
-        asset_accounts.find((a) => /stripe/i.test(a)) ??
-        asset_accounts[0] ??
+        money_accounts.find((a) => /stripe/i.test(a)) ??
+        money_accounts[0] ??
         "";
     }
   }
@@ -86,14 +98,14 @@
   async function save() {
     busy = true;
     try {
-      const res = await put_qb_invoice_csv_import({
+      const res = await put_qb_doc_csv_import(text.side, {
         content,
         mapping,
-        income_account,
+        account,
         payment_account: record_payments ? payment_account : "",
       });
       notify(
-        `Imported ${res.invoices.toString()} invoice${res.invoices === 1 ? "" : "s"}` +
+        `Imported ${res.docs.toString()} ${text.doc}${res.docs === 1 ? "" : "s"}` +
           (res.payments ? ` and ${res.payments.toString()} payments.` : "."),
       );
       ondone();
@@ -114,13 +126,11 @@
 
 <ModalBase shown={true} close_handler={onclose}>
   <div class="dialog">
-    <h2>Import invoices</h2>
+    <h2>Import {text.docs_title.toLowerCase()}</h2>
     {#if !preview}
       <p class="muted">
-        Export your invoice list as a CSV file and choose it here. This works
-        with Stripe (Invoices → Export), QuickBooks (Sales → Invoices → Export),
-        FreshBooks, Wave or any spreadsheet with an invoice number, customer,
-        date and total.
+        Export your {text.doc} list as a CSV file and choose it here. This works with
+        {text.import_sources}
       </p>
       <label class="file">
         <input
@@ -130,8 +140,8 @@
         />
       </label>
       <p class="muted small">
-        Invoices already in your books (for example Stripe payments imported
-        with their invoice number) are skipped automatically.
+        {text.docs_title} already in your books (for example ones imported with their
+        invoice number) are skipped automatically.
       </p>
     {:else}
       <p class="muted">
@@ -148,7 +158,7 @@
 
       <h3>Columns</h3>
       <div class="mapping">
-        {#each CSV_FIELDS as [field, label, required] (field)}
+        {#each fields as [field, label, required] (field)}
           <label>
             <span>{label}{required ? " *" : ""}</span>
             <select
@@ -178,7 +188,7 @@
           <thead>
             <tr>
               <th>Number</th>
-              <th>Customer</th>
+              <th>{text.party_title}</th>
               <th>Date</th>
               <th>Due</th>
               <th class="num">Total</th>
@@ -190,7 +200,7 @@
             {#each preview.rows as r (r.line)}
               <tr class={r.state}>
                 <td>{r.number}</td>
-                <td>{r.customer}</td>
+                <td>{r.party}</td>
                 <td class="nowrap">{r.date ? short_date(r.date) : ""}</td>
                 <td class="nowrap">{r.due ? short_date(r.due) : ""}</td>
                 <td class="num"
@@ -217,10 +227,10 @@
 
       <div class="options">
         <label>
-          <span>Book the income to</span>
-          <select bind:value={income_account}>
-            {#each income_accounts as account (account)}
-              <option value={account}>{account}</option>
+          <span>Book them to</span>
+          <select bind:value={account}>
+            {#each category_accounts as a (a)}
+              <option value={a}>{a}</option>
             {/each}
           </select>
         </label>
@@ -230,18 +240,18 @@
             <span
               >Also record the {paid_rows.length} payment{paid_rows.length === 1
                 ? ""
-                : "s"} marked paid, into</span
+                : "s"} marked paid, {text.paid_with_label}</span
             >
             <select bind:value={payment_account} disabled={!record_payments}>
-              {#each asset_accounts as account (account)}
-                <option value={account}>{account}</option>
+              {#each money_accounts as a (a)}
+                <option value={a}>{a}</option>
               {/each}
             </select>
           </label>
           <p class="muted small">
-            Leave this off if those payments come in through a bank or Stripe
-            import; match them on the Invoices page instead, so nothing is
-            counted twice.
+            Leave this off if those payments come in through a bank, card or
+            Stripe import; match them on the {text.docs_title} page instead, so nothing
+            is counted twice.
           </p>
         {/if}
       </div>
@@ -258,13 +268,11 @@
         <button
           type="button"
           class="qb-primary"
-          disabled={busy ||
-            !new_rows.length ||
-            missing.length > 0 ||
-            !income_account}
+          disabled={busy || !new_rows.length || missing.length > 0 || !account}
           onclick={save}
         >
-          Import {new_rows.length} invoice{new_rows.length === 1 ? "" : "s"}
+          Import {new_rows.length}
+          {text.doc}{new_rows.length === 1 ? "" : "s"}
         </button>
       {/if}
     </div>
