@@ -16,7 +16,8 @@ the Fava or Beancount projects, or with Intuit.
 What Favabooks adds
 -------------------
 
-- Grouped left navigation and a light/dark theme (``frontend/css/qb-theme.css``)
+- QuickBooks-style shell: top bar, grouped icon nav with a "+ New" menu, and
+  a light/dark theme that also restyles Fava's own pages
 - Dashboard: bank balances, profit and loss this month vs last, top expenses,
   review and error counts
 - For review: accept or recategorise imported transactions, one by one or in bulk
@@ -24,7 +25,11 @@ What Favabooks adds
 - Bulk reclassify: move postings between accounts across many transactions
 - Export for CPA: trial balance, P&L, balance sheet and general ledger as
   CSV or XLSX for a chosen year
+- Bank and card CSV importers for major US banks, Mercury and others, plus a
+  Stripe payout importer (``fava.qb_importers``), with a Bank formats page
 - Placeholders for screens in progress (reconcile, customers, vendors, …)
+
+See `ROADMAP.md <ROADMAP.md>`__ for what's next.
 - Docker image and compose file (``docker/``)
 
 New code lives in ``frontend/src/qb/`` and ``src/fava/qb_api.py``. Changes to
