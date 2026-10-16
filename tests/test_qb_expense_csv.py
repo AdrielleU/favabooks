@@ -38,7 +38,10 @@ def test_expense_csv() -> None:
     path = str(SHEET)
     assert imp.name == "my_expenses"
     assert imp.identify(path)
-    assert imp.account(path) == "Expenses"
+    assert imp.account(path) == "Expenses:Uncategorized"
+    assert ExpenseCSV(file_under="Expenses:Office").account(path) == (
+        "Expenses:Office"
+    )
     assert imp.date(path) == datetime.date(2026, 2, 3)
 
     entries = imp.extract(path, [])

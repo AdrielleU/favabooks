@@ -100,11 +100,14 @@ class ExpenseCSV(Importer):
             the last four digits.
         unassigned: Account when the payment method is blank or unknown.
         currency: Currency of the amounts.
+        file_under: Account whose documents folder keeps the spreadsheet
+            after import; defaults to `uncategorized`. (Fava needs a real
+            account here, so not just "Expenses".)
         flag: Flag of complete rows; rows with an unknown category or
             payment method get "!" so they show in For review.
     """
 
-    def __init__(
+    def __init__(  # noqa: PLR0913
         self,
         name: str = "expense_csv",
         *,
@@ -115,6 +118,7 @@ class ExpenseCSV(Importer):
         card_account: str = "Liabilities:CreditCard:Card-{}",
         unassigned: str = "Liabilities:CreditCard:Unassigned",
         currency: str = "USD",
+        file_under: str | None = None,
         flag: str = "*",
     ) -> None:
         self._name = name
@@ -127,6 +131,7 @@ class ExpenseCSV(Importer):
         self.card_account = card_account
         self.unassigned = unassigned
         self.currency = currency
+        self.file_under = file_under or uncategorized
         self.flag = flag
 
     @property
@@ -135,8 +140,8 @@ class ExpenseCSV(Importer):
         return self._name
 
     def account(self, filepath: str) -> str:  # noqa: ARG002
-        """Spreadsheets span many accounts; file them under Expenses."""
-        return "Expenses"
+        """Where the spreadsheet is filed (it spans many accounts)."""
+        return self.file_under
 
     def _payment(self, cell: str) -> tuple[str, bool]:
         """Account for a payment cell, and whether it needs review."""

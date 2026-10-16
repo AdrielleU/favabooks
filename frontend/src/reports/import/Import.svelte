@@ -8,7 +8,10 @@
   import { is_non_empty } from "../../lib/array.ts";
   import { log_error } from "../../log.ts";
   import { notify, notify_err } from "../../notifications.ts";
+  // qb-fork: begin
+  import { archive_imported_file } from "../../qb/import/auto_move.ts";
   import { loading_state, router, set_query_param } from "../../router.ts";
+  // qb-fork: end
   import { import_config } from "../../stores/fava_options.ts";
   import { search_params } from "../../stores/url.ts";
   import DocumentPreview from "../documents/DocumentPreview.svelte";
@@ -122,6 +125,9 @@
    */
   async function save() {
     const without_duplicates = entries.filter((e) => !e.is_duplicate());
+    // qb-fork: begin
+    const imported = { filename: extract_filename, importer: extract_importer };
+    // qb-fork: end
     if (extract_filename != null && extract_importer != null) {
       extract_cache.delete(`${extract_filename}:${extract_importer}`);
     }
@@ -129,6 +135,21 @@
     if (is_non_empty(without_duplicates)) {
       await save_entries(without_duplicates);
     }
+    // qb-fork: begin
+    // Saved (or everything was already in the books): file the source away.
+    if (imported.filename != null && imported.importer != null) {
+      const moved = await archive_imported_file(
+        files,
+        imported.filename,
+        imported.importer,
+        file_accounts,
+        file_names,
+      );
+      if (moved) {
+        router.reload();
+      }
+    }
+    // qb-fork: end
   }
 </script>
 
