@@ -1,5 +1,8 @@
 <script lang="ts">
-  import AsideContents from "./AsideContents.svelte";
+  // qb-fork: begin
+  import AsideContents from "../qb/nav/QbNav.svelte";
+
+  // qb-fork: end
 
   /** Whether the sidebar is currently shown. */
   let active = $state(false);

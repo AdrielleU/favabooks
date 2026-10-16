@@ -1,0 +1,57 @@
+/*
+ * qb-fork: QuickBooks-style layout (dark left nav, white header, cards).
+ * Loaded last from app.ts, so these override style.css and layout.css.
+ * Colours are our own; light-dark() keeps Fava's dark mode working.
+ */
+:root {
+  --qb-accent: light-dark(hsl(160deg 82% 24%), hsl(160deg 55% 52%));
+  --qb-nav: light-dark(hsl(215deg 28% 17%), hsl(215deg 28% 11%));
+  --qb-nav-raised: light-dark(hsl(215deg 25% 25%), hsl(215deg 25% 19%));
+
+  --background: light-dark(hsl(225deg 20% 97%), hsl(220deg 13% 13%));
+  --border: light-dark(hsl(218deg 15% 90%), hsl(220deg 10% 26%));
+  --link-color: var(--qb-accent);
+  --button-background: light-dark(hsl(160deg 82% 24%), hsl(160deg 55% 34%));
+
+  --sidebar-background: var(--qb-nav);
+  --sidebar-color: hsl(220deg 13% 85%);
+  --sidebar-hover-color: hsl(0deg 0% 100%);
+  --sidebar-border: var(--qb-nav-raised);
+  --mobile-button-text: var(--sidebar-color);
+
+  --header-background: light-dark(hsl(0deg 0% 100%), hsl(220deg 13% 18%));
+  --header-color: light-dark(hsl(221deg 39% 11%), hsl(220deg 13% 91%));
+  --header-placeholder-color: light-dark(
+    hsl(220deg 9% 46%),
+    hsl(220deg 9% 65%)
+  );
+  --header-placeholder-background: light-dark(
+    hsl(220deg 14% 96%),
+    hsl(220deg 13% 24%)
+  );
+
+  --aside-width: 210px;
+}
+
+header {
+  border-bottom: 1px solid var(--border);
+}
+
+aside {
+  --placeholder-background: var(--qb-nav-raised);
+  --placeholder-color: hsl(220deg 9% 70%);
+
+  color: var(--sidebar-color);
+}
+
+.qb-card {
+  padding: 16px 20px;
+  background: var(--header-background);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.qb-wip::after {
+  content: " (WIP)";
+  opacity: 0.6;
+}

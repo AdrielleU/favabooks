@@ -1,0 +1,5 @@
+.git
+.venv
+frontend/node_modules
+src/fava/static/app.js
+**/__pycache__

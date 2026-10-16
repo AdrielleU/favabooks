@@ -17,6 +17,9 @@ import "../css/grid.css";
 import "../css/fonts.css";
 import "../css/journal-table.css";
 import "../css/notifications.css";
+// qb-fork: begin
+import "../css/qb-theme.css";
+// qb-fork: end
 import "../css/tree-table.css";
 // Polyfill for customised builtin elements in Webkit
 import "@ungap/custom-elements";

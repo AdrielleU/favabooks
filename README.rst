@@ -1,3 +1,47 @@
+Favabooks
+=========
+
+Favabooks is a bookkeeping UI for small businesses that keep their books in
+plain-text `Beancount <https://github.com/beancount/beancount>`__ files. It
+adds QuickBooks-like screens (a dashboard, a bank "for review" queue, an
+account register, bulk reclassify) alongside every page of the stock Fava UI,
+and ships as one Docker image.
+
+**Favabooks is a fork of** `Fava <https://github.com/beancount/fava>`__ **by
+Dominik Aumayr and the Fava contributors.** Almost all of this code is
+theirs, and the full Fava history is kept in this repository. Fava is MIT
+licensed; see ``LICENSE`` and ``NOTICE``. Favabooks is not affiliated with
+the Fava or Beancount projects, or with Intuit.
+
+What Favabooks adds
+-------------------
+
+- Grouped left navigation and a light/dark theme (``frontend/css/qb-theme.css``)
+- Dashboard: bank balances, profit and loss this month vs last, top expenses,
+  review and error counts
+- Placeholders for screens in progress (reconcile, customers, vendors, …)
+- Docker image and compose file (``docker/``)
+
+New code lives in ``frontend/src/qb/`` and ``src/fava/qb_api.py``. Changes to
+Fava's own files are kept small and marked ``qb-fork``.
+
+Running it
+----------
+
+.. code-block:: bash
+
+    make dev                       # needs uv and Node 22.22.2+ / 24.15+
+    uv run fava path/to/main.beancount
+
+or with Docker: ``cd docker && docker compose up -d --build``. Fava has no
+login, so put it behind an authenticating reverse proxy before exposing it.
+
+----
+
+The original Fava README follows.
+
+----
+
 .. image:: https://img.shields.io/gitter/room/beancount/fava
    :alt: Join the chat at https://gitter.im/beancount/fava
    :target: https://gitter.im/beancount/fava

@@ -1,0 +1,61 @@
+option "title" "QB Example"
+option "operating_currency" "USD"
+
+2026-01-01 open Assets:Bank:Checking
+2026-01-01 open Assets:Bank:Old
+2026-01-01 open Assets:Stripe
+2026-01-01 open Assets:Cash
+2026-01-01 open Income:Services
+2026-01-01 open Expenses:Fees:Stripe
+2026-01-01 open Expenses:Meals
+2026-01-01 open Expenses:Software
+2026-01-01 open Expenses:Travel
+2026-01-01 open Expenses:Uncategorized
+2026-01-01 open Equity:Opening-Balances
+
+2026-01-02 * "Opening balance"
+  Assets:Bank:Checking   1000.00 USD
+  Assets:Bank:Old          50.00 USD
+  Equity:Opening-Balances
+
+2026-01-10 * "Close old account"
+  Assets:Bank:Old         -50.00 USD
+  Assets:Bank:Checking
+
+2026-01-15 close Assets:Bank:Old
+
+2026-02-05 * "Acme" "February retainer"
+  Assets:Stripe           970.00 USD
+  Expenses:Fees:Stripe     30.00 USD
+  Income:Services       -1000.00 USD
+
+2026-02-20 * "Cafe" "Lunch"
+  Assets:Bank:Checking    -40.00 USD
+  Expenses:Meals
+
+2026-03-01 * "Stripe" "Payout"
+  Assets:Stripe          -970.00 USD
+  Assets:Bank:Checking
+
+2026-03-03 * "Acme" "March retainer"
+  Assets:Stripe          1455.00 USD
+  Expenses:Fees:Stripe     45.00 USD
+  Income:Services       -1500.00 USD
+
+2026-03-10 * "Hotel Berlin" "Conference"
+  Assets:Bank:Checking   -220.00 USD
+  Expenses:Travel         200.00 EUR @@ 220.00 USD
+
+2026-03-12 ! "SaaS Co" "Imported, waiting for review"
+  Assets:Bank:Checking    -60.00 USD
+  Expenses:Uncategorized
+
+2026-03-14 * "Cafe" "Coffee"
+  Assets:Cash             -12.00 USD
+  Expenses:Meals
+
+2026-03-31 price EUR 1.10 USD
+
+2026-04-02 ! "Later" "Outside the window, still counted for review"
+  Assets:Bank:Checking    -5.00 USD
+  Expenses:Uncategorized

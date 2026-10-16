@@ -1,0 +1,19 @@
+Favabooks
+Copyright (c) 2026 Adrielle Umali
+
+Favabooks is a fork of Fava, the web interface for Beancount.
+
+  Fava: https://github.com/beancount/fava
+  Copyright (c) 2015-2016 Dominik Aumayr and the Fava contributors
+  Licensed under the MIT License (see LICENSE)
+
+The full Fava commit history is preserved in this repository. Favabooks adds
+bookkeeping screens on top of Fava (see frontend/src/qb/ and
+src/fava/qb_api.py); everything else is Fava's work.
+
+Favabooks is not affiliated with or endorsed by the Fava or Beancount
+projects, or by Intuit. "QuickBooks" is a trademark of Intuit Inc. and is
+used here only to describe the style of workflow.
+
+The Python package and command keep Fava's name (`fava`) so upstream changes
+can be merged. Favabooks is not published to PyPI.

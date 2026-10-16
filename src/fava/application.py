@@ -41,6 +41,7 @@ from markupsafe import Markup
 from werkzeug.utils import secure_filename
 
 from fava import LOCALES
+from fava import qb_api  # noqa: F401  # qb-fork: registers the qb_* endpoints
 from fava import template_filters
 from fava._ctx_globals_class import Context
 from fava.beans import funcs
@@ -83,6 +84,18 @@ CLIENT_SIDE_REPORTS = [
     "query",
     "statistics",
     "trial_balance",
+    # qb-fork: begin
+    "qb_dashboard",
+    "qb_review",
+    "qb_register",
+    "qb_reclassify",
+    "qb_reconcile",
+    "qb_close_books",
+    "qb_customers",
+    "qb_invoices",
+    "qb_vendors",
+    "qb_bills",
+    # qb-fork: end
 ]
 
 log = logging.getLogger(__name__)

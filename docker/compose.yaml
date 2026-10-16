@@ -1,0 +1,22 @@
+services:
+  ledger-ui:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    image: ledger-ui:latest
+    restart: unless-stopped
+    environment:
+      # space-separated list: one main.beancount per entity
+      LEDGERS: "/books/my-company/main.beancount"
+      GIT_AUTHOR_NAME: "ledger-ui"
+      GIT_AUTHOR_EMAIL: "ledger-ui@localhost"
+      GIT_COMMITTER_NAME: "ledger-ui"
+      GIT_COMMITTER_EMAIL: "ledger-ui@localhost"
+      # Fava runs import-config with runpy, so siblings of config.py need this
+      PYTHONPATH: "/books/importers"
+    # rootless Podman only: map host UID to the container's fava user
+    # userns_mode: keep-id
+    volumes:
+      - /srv/books:/books # the books/ git repo from Step 5
+    ports:
+      - "127.0.0.1:5000:5000" # only reachable through the reverse proxy

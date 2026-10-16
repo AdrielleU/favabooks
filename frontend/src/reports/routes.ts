@@ -1,3 +1,6 @@
+// qb-fork: begin
+import { qb_routes } from "../qb/routes.ts";
+// qb-fork: end
 import { account_report } from "./accounts/index.ts";
 import { commodities } from "./commodities/index.ts";
 import { documents } from "./documents/index.ts";
@@ -43,4 +46,7 @@ export const frontend_routes: FrontendRoute[] = [
   query,
   statistics,
   trial_balance,
+  // qb-fork: begin
+  ...qb_routes,
+  // qb-fork: end
 ];
