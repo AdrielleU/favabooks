@@ -17,10 +17,16 @@
   let selected = $state<Record<string, boolean>>({});
   /** Account card the table is filtered to ("" for all). */
   let only = $state("");
+  /** Bank or card picked per row (entry hash -> account). */
+  let paid = $state<Record<string, string>>({});
   let bulk_category = $state("");
+  let bulk_paid = $state("");
   let busy = $state(false);
 
   $effect.pre(() => {
+    paid = Object.fromEntries(
+      review.rows.map((row) => [row.entry_hash, row.account]),
+    );
     chosen = Object.fromEntries(
       review.rows.map((row) => [row.entry_hash, row.categories[0] ?? ""]),
     );
@@ -49,29 +55,51 @@
   }
 
   /**
-   * Accept rows, changing each one's category to `to_override` or to the one
-   * picked in its row. Rows sharing the same change go in one request.
+   * Accept rows, applying each one's category and bank/card change (from
+   * `overrides` for bulk actions, else what was picked in its row). Rows
+   * sharing the same changes go in one request.
    */
-  async function accept(targets: QbReviewRow[], to_override?: string) {
+  async function accept(
+    targets: QbReviewRow[],
+    overrides: { category?: string; paid?: string } = {},
+  ) {
     // A plain object: this is local to one call, not reactive state.
     const groups: Record<
       string,
-      { from: string; to: string; hashes: string[] }
+      {
+        from: string;
+        to: string;
+        from_paid: string;
+        to_paid: string;
+        hashes: string[];
+      }
     > = {};
     let unchanged_splits = 0;
     for (const row of targets) {
       const from = row.categories[0] ?? "";
-      let to = to_override ?? chosen[row.entry_hash] ?? from;
+      let to = overrides.category ?? chosen[row.entry_hash] ?? from;
       if (is_split(row)) {
-        unchanged_splits += to_override === undefined ? 0 : 1;
+        unchanged_splits += overrides.category === undefined ? 0 : 1;
         to = from;
       }
-      if (to !== from && !$accounts_set.has(to)) {
-        notify(`"${to}" is not an open account.`, "error");
-        return;
+      const to_paid = overrides.paid ?? paid[row.entry_hash] ?? row.account;
+      for (const target of [to, to_paid]) {
+        if (
+          target !== from &&
+          target !== row.account &&
+          !$accounts_set.has(target)
+        ) {
+          notify(`"${target}" is not an open account.`, "error");
+          return;
+        }
       }
-      const change = to === from ? { from: "", to: "" } : { from, to };
-      const key = `${change.from}\u0000${change.to}`;
+      const change = {
+        from: to === from ? "" : from,
+        to: to === from ? "" : to,
+        from_paid: to_paid === row.account ? "" : row.account,
+        to_paid: to_paid === row.account ? "" : to_paid,
+      };
+      const key = Object.values(change).join("\u0000");
       const group = groups[key] ?? { ...change, hashes: [] };
       group.hashes.push(row.entry_hash);
       groups[key] = group;
@@ -80,13 +108,15 @@
     busy = true;
     const results: QbEditResult[] = [];
     try {
-      for (const { from, to, hashes } of Object.values(groups)) {
+      for (const { from, to, from_paid, to_paid, hashes } of Object.values(
+        groups,
+      )) {
         results.push(
-          await put_qb_accept(
-            to
-              ? { entry_hashes: hashes, from_account: from, to_account: to }
-              : { entry_hashes: hashes },
-          ),
+          await put_qb_accept({
+            entry_hashes: hashes,
+            ...(to ? { from_account: from, to_account: to } : {}),
+            ...(to_paid ? { from_paid, to_paid } : {}),
+          }),
         );
       }
     } catch (error) {
@@ -189,15 +219,26 @@
         >
           Accept selected
         </button>
-        <span class="muted">or categorize as</span>
-        <span class="picker"><AccountInput bind:value={bulk_category} /></span>
+        <span class="muted">or set</span>
+        <label class="picker">
+          <span>Category</span>
+          <AccountInput bind:value={bulk_category} />
+        </label>
+        <label class="picker">
+          <span>Paid with</span>
+          <AccountInput bind:value={bulk_paid} />
+        </label>
         <button
           type="button"
           class="qb-secondary"
-          disabled={busy || !bulk_category}
-          onclick={async () => accept(selected_rows, bulk_category)}
+          disabled={busy || (!bulk_category && !bulk_paid)}
+          onclick={async () =>
+            accept(selected_rows, {
+              ...(bulk_category ? { category: bulk_category } : {}),
+              ...(bulk_paid ? { paid: bulk_paid } : {}),
+            })}
         >
-          Categorize &amp; accept
+          Apply &amp; accept
         </button>
       {:else}
         <span class="tab"
@@ -221,7 +262,7 @@
           </th>
           <th>Date</th>
           <th>Description</th>
-          <th>Account</th>
+          <th>Bank or card</th>
           <th class="num">Spent</th>
           <th class="num">Received</th>
           <th>Category</th>
@@ -239,7 +280,7 @@
               />
             </td>
             <td class="date">{short_date(row.date)}</td>
-            <td>
+            <td class="desc">
               <a href={`#context-${row.entry_hash}`} title="Show transaction">
                 <strong>{row.payee || row.narration}</strong>
                 {#if row.payee && row.narration}
@@ -247,7 +288,16 @@
                 {/if}
               </a>
             </td>
-            <td class="muted" title={row.account}>{leaf(row.account)}</td>
+            <td class="category paid" title={row.account}>
+              <AccountInput
+                bind:value={
+                  () => paid[row.entry_hash] ?? row.account,
+                  (value: string) => {
+                    paid[row.entry_hash] = value;
+                  }
+                }
+              />
+            </td>
             <td class="num">
               {row.amount < 0 ? money(-row.amount, row.currency) : ""}
             </td>
@@ -354,9 +404,10 @@
     font-size: 0.82rem;
   }
 
+  /* No overflow clipping: account suggestion lists open below a row and
+   * must stay visible (the page scrolls instead). */
   .table-card {
     padding: 0;
-    overflow-x: auto;
   }
 
   .toolbar {
@@ -389,7 +440,15 @@
   }
 
   .picker {
-    min-width: 15rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    min-width: 14rem;
+  }
+
+  .picker span {
+    font-size: 0.75rem;
+    color: var(--qb-muted);
   }
 
   table {
@@ -421,6 +480,7 @@
   }
 
   .num {
+    width: 1%;
     text-align: right;
   }
 
@@ -441,8 +501,32 @@
     font-size: 0.88em;
   }
 
-  .category {
-    min-width: 15rem;
+  /* Descriptions wrap so the account columns keep their width. */
+  .desc {
+    min-width: 12rem;
+    white-space: normal;
+  }
+
+  /* Fava's autocomplete wraps the input in a span; let both fill the cell. */
+  .category > :global(span),
+  .category :global(input) {
+    display: block;
+    width: 100%;
+  }
+
+  .category :global(input) {
+    padding-right: 0.4rem;
+    padding-left: 0.4rem;
+  }
+
+  /* Minimum widths on the boxes (not the cells): auto table layout honours
+   * content minimums, so full account names stay readable. */
+  .category > :global(span) {
+    min-width: 14rem;
+  }
+
+  .category.paid > :global(span) {
+    min-width: 16.5rem;
   }
 
   /* Category boxes read as text until hovered or focused. */

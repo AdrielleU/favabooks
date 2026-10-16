@@ -371,21 +371,31 @@ def put_qb_reclassify(
 
 @api_endpoint
 def put_qb_accept(
-    entry_hashes: list[str], from_account: str = "", to_account: str = ""
+    entry_hashes: list[str],
+    from_account: str = "",
+    to_account: str = "",
+    from_paid: str = "",
+    to_paid: str = "",
 ) -> QbEditResult:
-    """Accept reviewed entries (flag `!` to `*`), optionally recategorising.
+    """Accept reviewed entries (flag `!` to `*`).
 
-    Both changes are made in one edit, since an entry's hash changes on save.
+    Optionally moves the category posting (from_account -> to_account)
+    and the bank or card posting (from_paid -> to_paid), e.g. from an
+    "Unassigned" card to the real one. All changes are one edit, since an
+    entry's hash changes on save.
     """
-    if to_account:
-        if not from_account:
-            msg = "from_account is required with to_account"
-            raise ValidationError(msg)
-        _check_account(to_account)
+    changes = [(from_account, to_account), (from_paid, to_paid)]
+    for source_account, target in changes:
+        if target:
+            if not source_account:
+                msg = "a from_ account is required with each to_ account"
+                raise ValidationError(msg)
+            _check_account(target)
 
     def edit(source: str) -> str:
-        if to_account:
-            source = _reclassify(source, from_account, to_account)
+        for source_account, target in changes:
+            if target:
+                source = _reclassify(source, source_account, target)
         return _PENDING_FLAG.sub(r"\1*", source, count=1)
 
     return _edit_entries(entry_hashes, edit)

@@ -207,6 +207,36 @@ def test_accept_and_recategorise(review: tuple[FlaskClient, Path]) -> None:
     assert [r["date"] for r in get_review(client)][-1] == "2026-03-02"
 
 
+def test_accept_with_card_change(review: tuple[FlaskClient, Path]) -> None:
+    client, ledger = review
+    status, data = put(
+        client,
+        "qb_accept",
+        entry_hashes=[entry_hash(client, "2026-03-01")],
+        from_account="Expenses:Uncategorized",
+        to_account="Expenses:Meals",
+        from_paid="Assets:Bank:Checking",
+        to_paid="Liabilities:Card",
+    )
+    assert (status, data) == (
+        HTTPStatus.OK.value,
+        {"changed": 1, "failed": []},
+    )
+    text = ledger.read_text("utf-8")
+    assert (
+        '2026-03-01 * "Cafe" "Lunch"\n  Liabilities:Card  -10.00 USD\n' in text
+    )
+    assert "  Expenses:Meals\n" in text
+
+    status, _ = put(
+        client,
+        "qb_accept",
+        entry_hashes=[entry_hash(client, "2026-03-02")],
+        to_paid="Liabilities:Card",
+    )
+    assert status == HTTPStatus.BAD_REQUEST.value
+
+
 def test_accept_only(review: tuple[FlaskClient, Path]) -> None:
     client, ledger = review
     hashes = [

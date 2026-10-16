@@ -257,9 +257,10 @@
     min-width: 16rem;
   }
 
+  /* No overflow clipping: account suggestion lists open below a row and
+   * must stay visible (the page scrolls instead). */
   .table-card {
     padding: 0;
-    overflow-x: auto;
   }
 
   table {

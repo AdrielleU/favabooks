@@ -149,6 +149,8 @@ export const put_qb_accept = async (body: {
   entry_hashes: string[];
   from_account?: string;
   to_account?: string;
+  from_paid?: string;
+  to_paid?: string;
 }): Promise<QbEditResult> => qb_put("qb_accept", body, qb_edit_result);
 
 /** Move postings from one account to another across many entries. */
