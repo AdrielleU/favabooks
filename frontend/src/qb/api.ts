@@ -50,6 +50,27 @@ async function qb_get<R>(
   return validator(json.data).unwrap(QbInvalidResponseError);
 }
 
+async function qb_put<R>(
+  endpoint: `qb_${string}`,
+  body: Record<string, unknown>,
+  validator: Validator<R>,
+): Promise<R> {
+  const url = new URL(
+    `${store_get(base_url)}api/${endpoint}`,
+    window.location.href,
+  );
+  const json = await fetch_json(url, {
+    method: "PUT",
+    body: JSON.stringify(body),
+    headers: { "Content-Type": "application/json" },
+  });
+  // Record our own save so Fava doesn't announce it as an external change.
+  if (typeof json.mtime === "string") {
+    set_mtime(json.mtime);
+  }
+  return validator(json.data).unwrap(QbInvalidResponseError);
+}
+
 const qb_amount = object({ account: string, amount: decimal });
 
 const qb_profit_loss = object({
@@ -78,3 +99,49 @@ export type QbDashboard = ValidationT<typeof qb_dashboard>;
 export const get_qb_dashboard = async (params: {
   time: string;
 }): Promise<QbDashboard> => qb_get("qb_dashboard", params, qb_dashboard);
+
+/** Header filters that the qb endpoints respect. */
+export interface QbFilters {
+  time: string;
+  account: string;
+  filter: string;
+}
+
+const qb_review_row = object({
+  entry_hash: string,
+  date,
+  payee: string,
+  narration: string,
+  account: string,
+  amount: decimal,
+  currency: string,
+  categories: array(string),
+});
+
+const qb_edit_result = object({
+  changed: number,
+  failed: array(object({ entry_hash: string, error: string })),
+});
+
+export type QbReviewRow = ValidationT<typeof qb_review_row>;
+export type QbEditResult = ValidationT<typeof qb_edit_result>;
+
+/** Transactions flagged ! within the header filters, newest first. */
+export const get_qb_review = async (
+  params: QbFilters,
+): Promise<QbReviewRow[]> =>
+  qb_get("qb_review", { ...params }, array(qb_review_row));
+
+/** Accept entries (! to *), optionally moving from_account to to_account. */
+export const put_qb_accept = async (body: {
+  entry_hashes: string[];
+  from_account?: string;
+  to_account?: string;
+}): Promise<QbEditResult> => qb_put("qb_accept", body, qb_edit_result);
+
+/** Move postings from one account to another across many entries. */
+export const put_qb_reclassify = async (body: {
+  entry_hashes: string[];
+  from_account: string;
+  to_account: string;
+}): Promise<QbEditResult> => qb_put("qb_reclassify", body, qb_edit_result);

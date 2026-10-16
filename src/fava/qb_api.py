@@ -12,15 +12,22 @@ from collections import defaultdict
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
+from beancount.core.data import Transaction
 from msgspec import Struct
 
+from fava.beans.funcs import hash_entry
 from fava.context import g
 from fava.core.conversion import conversion_from_str
+from fava.core.file import get_entry_slice
 from fava.core.inventory import CounterInventory
+from fava.helpers import FavaAPIError
 from fava.json_api import api_endpoint
+from fava.json_api import ValidationError
 from fava.util.date import local_today
 
 if TYPE_CHECKING:  # pragma: no cover
+    from collections.abc import Callable
+
     from fava.core import FavaLedger
 
 #: Accounts shown on the dashboard's balances card.
@@ -169,3 +176,162 @@ def get_qb_dashboard() -> QbDashboard:
         review_count=review_count,
         error_count=len(ledger.errors),
     )
+
+
+# --- Review queue and reclassify -------------------------------------------
+
+#: The `!` flag on a transaction's first line ("2026-03-12 ! ...").
+_PENDING_FLAG = re.compile(r"^(\d{4}-\d{2}-\d{2}\s+)!")
+
+
+def _posting_line(account: str) -> re.Pattern[str]:
+    """Match posting lines for exactly `account`, keeping indent and flag."""
+    return re.compile(
+        rf"^(\s+(?:\S\s+)?){re.escape(account)}(?=\s|$)", re.MULTILINE
+    )
+
+
+class QbReviewRow(Struct, frozen=True):
+    """A transaction flagged `!` waiting in the review queue."""
+
+    entry_hash: str
+    date: datetime.date
+    payee: str
+    narration: str
+    #: The bank or card posting (first Assets/Liabilities posting).
+    account: str
+    amount: Decimal
+    currency: str
+    #: The other postings' accounts; one entry unless the transaction is split.
+    categories: list[str]
+
+
+class QbEditFailure(Struct, frozen=True):
+    """An entry that could not be changed."""
+
+    entry_hash: str
+    error: str
+
+
+class QbEditResult(Struct, frozen=True):
+    """Outcome of an edit across several entries; edits are per entry."""
+
+    changed: int
+    failed: list[QbEditFailure]
+
+
+@api_endpoint
+def get_qb_review() -> list[QbReviewRow]:
+    """Transactions flagged `!`, newest first, within the header filters."""
+    g.ledger.changed()
+    options = g.ledger.options
+    roots = (f"{options['name_assets']}:", f"{options['name_liabilities']}:")
+    rows = []
+    for entry in g.filtered.entries:
+        if not isinstance(entry, Transaction) or entry.flag != "!":
+            continue
+        postings = entry.postings
+        source = next(
+            (p for p in postings if p.account.startswith(roots)), postings[0]
+        )
+        categories = [p.account for p in postings if p is not source]
+        # Units are always filled in after loading; the fallback is for typing.
+        units = source.units
+        number = units.number if units is not None else None
+        rows.append(
+            QbReviewRow(
+                entry_hash=hash_entry(entry),
+                date=entry.date,
+                payee=entry.payee or "",
+                narration=entry.narration or "",
+                account=source.account,
+                amount=number if number is not None else ZERO,
+                currency=units.currency if units is not None else "",
+                categories=list(dict.fromkeys(categories)),
+            )
+        )
+    rows.sort(key=lambda row: row.date, reverse=True)
+    return rows
+
+
+def _check_account(account: str) -> None:
+    if account not in g.ledger.accounts:
+        msg = f"unknown account '{account}'"
+        raise ValidationError(msg)
+
+
+def _edit_entries(
+    entry_hashes: list[str], edit: Callable[[str], str]
+) -> QbEditResult:
+    """Apply `edit` to the source text of each entry and save it.
+
+    Saves go through save_entry_slice (sha-checked, fires the extension hooks
+    such as auto-commit). Each entry is saved on its own, so one failure
+    doesn't stop the rest; failures are returned instead of raised.
+    """
+    ledger = g.ledger
+    entries = []
+    failed = []
+    for entry_hash in dict.fromkeys(entry_hashes):
+        try:
+            entries.append((entry_hash, ledger.get_entry(entry_hash)))
+        except FavaAPIError as error:
+            failed.append(QbEditFailure(entry_hash, str(error)))
+    # Edit bottom-up so line numbers of entries not yet edited stay valid.
+    entries.sort(
+        key=lambda pair: (pair[1].meta["filename"], pair[1].meta["lineno"]),
+        reverse=True,
+    )
+    changed = 0
+    for entry_hash, entry in entries:
+        source, sha256sum = get_entry_slice(entry)
+        new_source = edit(source)
+        if new_source == source:
+            continue
+        try:
+            ledger.file.save_entry_slice(entry_hash, new_source, sha256sum)
+        except FavaAPIError as error:
+            failed.append(QbEditFailure(entry_hash, str(error)))
+        else:
+            changed += 1
+    return QbEditResult(changed, failed)
+
+
+def _reclassify(source: str, from_account: str, to_account: str) -> str:
+    return _posting_line(from_account).sub(
+        lambda match: match.group(1) + to_account, source
+    )
+
+
+@api_endpoint
+def put_qb_reclassify(
+    entry_hashes: list[str], from_account: str, to_account: str
+) -> QbEditResult:
+    """Move postings from one account to another across many entries."""
+    _check_account(to_account)
+    return _edit_entries(
+        entry_hashes,
+        lambda source: _reclassify(source, from_account, to_account),
+    )
+
+
+@api_endpoint
+def put_qb_accept(
+    entry_hashes: list[str], from_account: str = "", to_account: str = ""
+) -> QbEditResult:
+    """Accept reviewed entries (flag `!` to `*`), optionally recategorising.
+
+    Both changes are made in one edit, since an entry's hash changes on save.
+    """
+    if to_account:
+        if not from_account:
+            msg = "from_account is required with to_account"
+            raise ValidationError(msg)
+        _check_account(to_account)
+
+    def edit(source: str) -> str:
+        if to_account:
+            source = _reclassify(source, from_account, to_account)
+        return _PENDING_FLAG.sub(r"\1*", source, count=1)
+
+    return _edit_entries(entry_hashes, edit)

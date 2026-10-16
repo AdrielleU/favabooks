@@ -26,11 +26,6 @@ export function wip_route(
 export const wip_routes = [
   // Phase 1: placeholders until each screen lands.
   wip_route(
-    "qb_review",
-    "For review",
-    "Imported transactions flagged ! waiting to be accepted or recategorised.",
-  ),
-  wip_route(
     "qb_register",
     "Register",
     "Spreadsheet-style account register with running balance and inline edit.",

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import shutil
 from decimal import Decimal
 from http import HTTPStatus
 from pathlib import Path
@@ -8,9 +9,12 @@ from typing import TYPE_CHECKING
 import pytest
 
 from fava.application import create_app
+from fava.core.file import get_entry_slice
 
 if TYPE_CHECKING:  # pragma: no cover
     from flask.testing import FlaskClient
+
+    from fava.beans.abc import Directive
 
 
 #: Kept out of tests/data, whose file listing is snapshot-tested upstream.
@@ -90,3 +94,177 @@ def test_dashboard_defaults_to_today(qb_client: FlaskClient) -> None:
     assert isinstance(this_month, dict)
     assert this_month["month"] >= "2026-10"
     assert data["review_count"] == 2
+
+
+# --- Review queue, accept and reclassify ------------------------------------
+
+
+@pytest.fixture
+def review(tmp_path: Path) -> tuple[FlaskClient, Path]:
+    """A client on a writable copy of qb-review.beancount, and its path."""
+    ledger = tmp_path / "qb-review.beancount"
+    shutil.copy(QB_DATA_DIR / "qb-review.beancount", ledger)
+    app = create_app([ledger], load=True)
+    app.testing = True
+    return app.test_client(), ledger
+
+
+def get_review(client: FlaskClient, time: str = "") -> list[dict[str, object]]:
+    response = client.get(
+        "/qb-review/api/qb_review", query_string={"time": time}
+    )
+    assert response.status_code == HTTPStatus.OK.value
+    rows = response.get_json()["data"]
+    assert isinstance(rows, list)
+    return rows
+
+
+def entry_hash(client: FlaskClient, day: str) -> str:
+    """Hash of the transaction on `day` (one per day in the fixture)."""
+    response = client.get(
+        "/qb-review/api/query",
+        query_string={
+            "query_string": f"SELECT DISTINCT id WHERE date = {day}"
+        },
+    )
+    rows = response.get_json()["data"]["rows"]
+    assert len(rows) == 1
+    return str(rows[0][0])
+
+
+def put(
+    client: FlaskClient, endpoint: str, **body: object
+) -> tuple[int, object]:
+    response = client.put(f"/qb-review/api/{endpoint}", json=body)
+    json = response.get_json()
+    return response.status_code, json.get("data", json)
+
+
+def test_review_rows(review: tuple[FlaskClient, Path]) -> None:
+    client, _ = review
+    rows = get_review(client)
+
+    assert [(r["date"], r["payee"], r["account"]) for r in rows] == [
+        # No Assets or Liabilities posting: falls back to the first posting.
+        ("2026-03-06", "", "Expenses:Meals"),
+        ("2026-03-05", "Hardware Store", "Assets:Bank:Checking"),
+        ("2026-03-02", "SaaS Co", "Liabilities:Card"),
+        ("2026-03-01", "Cafe", "Assets:Bank:Checking"),
+    ]
+    assert rows[1]["categories"] == ["Expenses:Meals", "Expenses:Software"]
+    assert rows[2]["categories"] == ["Expenses:Uncategorized"]
+    assert Decimal(str(rows[2]["amount"])) == Decimal("-20.00")
+    assert rows[2]["currency"] == "USD"
+    assert rows[2]["entry_hash"] == entry_hash(client, "2026-03-02")
+
+    # The header's time filter narrows the queue.
+    assert [r["date"] for r in get_review(client, "2026-03-02")] == [
+        "2026-03-02"
+    ]
+
+
+def test_accept_and_recategorise(review: tuple[FlaskClient, Path]) -> None:
+    client, ledger = review
+    status, data = put(
+        client,
+        "qb_accept",
+        entry_hashes=[entry_hash(client, "2026-03-01")],
+        from_account="Expenses:Uncategorized",
+        to_account="Expenses:Meals",
+    )
+
+    assert status == HTTPStatus.OK.value
+    assert data == {"changed": 1, "failed": []}
+    text = ledger.read_text("utf-8")
+    assert '2026-03-01 * "Cafe" "Lunch"\n' in text
+    assert "  Assets:Bank:Checking  -10.00 USD\n  Expenses:Meals\n" in text
+    assert [r["date"] for r in get_review(client)][-1] == "2026-03-02"
+
+
+def test_accept_only(review: tuple[FlaskClient, Path]) -> None:
+    client, ledger = review
+    hashes = [
+        entry_hash(client, "2026-03-05"),
+        entry_hash(client, "2026-03-02"),
+    ]
+    status, data = put(client, "qb_accept", entry_hashes=hashes)
+
+    assert status == HTTPStatus.OK.value
+    assert data == {"changed": 2, "failed": []}
+    text = ledger.read_text("utf-8")
+    assert '2026-03-05 * "Hardware Store" "Split"' in text
+    assert '2026-03-02 * "SaaS Co" "Card charge"' in text
+    # Categories untouched, other queued entries still flagged.
+    assert "  Expenses:Uncategorized   20.00 USD" in text
+    assert '2026-03-01 ! "Cafe"' in text
+
+
+def test_reclassify_many(review: tuple[FlaskClient, Path]) -> None:
+    client, ledger = review
+    days = ["2026-03-01", "2026-03-02", "2026-03-03", "2026-03-04"]
+    status, data = put(
+        client,
+        "qb_reclassify",
+        entry_hashes=[entry_hash(client, day) for day in days],
+        from_account="Expenses:Uncategorized",
+        to_account="Expenses:Software",
+    )
+
+    assert status == HTTPStatus.OK.value
+    # 2026-03-03 only has the sub-account, so it is left alone.
+    assert data == {"changed": 3, "failed": []}
+    text = ledger.read_text("utf-8")
+    assert "  Expenses:Uncategorized:Old\n" in text
+    assert "  ! Expenses:Software  40.00 USD\n" in text
+    assert "  Expenses:Software   20.00 USD\n" in text
+    assert "  Assets:Bank:Checking  -10.00 USD\n  Expenses:Software\n" in text
+    # Reclassify doesn't accept.
+    assert '2026-03-01 ! "Cafe"' in text
+
+
+def test_edit_validation(review: tuple[FlaskClient, Path]) -> None:
+    client, ledger = review
+    before = ledger.read_text("utf-8")
+    hashes = [entry_hash(client, "2026-03-01")]
+
+    status, _ = put(
+        client,
+        "qb_reclassify",
+        entry_hashes=hashes,
+        from_account="Expenses:Uncategorized",
+        to_account="Expenses:Nope",
+    )
+    assert status == HTTPStatus.BAD_REQUEST.value
+    status, _ = put(
+        client, "qb_accept", entry_hashes=hashes, to_account="Expenses:Meals"
+    )
+    assert status == HTTPStatus.BAD_REQUEST.value
+    assert ledger.read_text("utf-8") == before
+
+
+def test_edit_failures_are_reported(
+    review: tuple[FlaskClient, Path], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    client, ledger = review
+    good = entry_hash(client, "2026-03-01")
+
+    status, data = put(client, "qb_accept", entry_hashes=["missing", good])
+    assert status == HTTPStatus.OK.value
+    assert isinstance(data, dict)
+    assert data["changed"] == 1
+    assert [f["entry_hash"] for f in data["failed"]] == ["missing"]
+
+    # A save that fails the sha check (file changed since it was read).
+    def stale_slice(entry: Directive) -> tuple[str, str]:
+        source, _ = get_entry_slice(entry)
+        return source, "stale"
+
+    monkeypatch.setattr("fava.qb_api.get_entry_slice", stale_slice)
+    before = ledger.read_text("utf-8")
+    status, data = put(
+        client, "qb_accept", entry_hashes=[entry_hash(client, "2026-03-02")]
+    )
+    assert isinstance(data, dict)
+    assert data["changed"] == 0
+    assert len(data["failed"]) == 1
+    assert ledger.read_text("utf-8") == before
