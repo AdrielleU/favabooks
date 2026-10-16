@@ -16,9 +16,11 @@ from typing import TYPE_CHECKING
 from beancount.core.data import Transaction
 from msgspec import Struct
 
-# Registers the Bank connections, Reconcile and All transactions endpoints.
+# Registers the Bank connections, Reconcile, Sales and All transactions
+# endpoints.
 from fava import qb_connections  # noqa: F401
 from fava import qb_reconcile  # noqa: F401
+from fava import qb_sales  # noqa: F401
 from fava import qb_transactions  # noqa: F401
 from fava.beans.funcs import hash_entry
 from fava.context import g

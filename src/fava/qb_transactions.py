@@ -127,9 +127,18 @@ def _classify(
     return kind, number, currency, categories, paid_with
 
 
-def _receipts(
+def documents_by_name() -> dict[str, list[str]]:
+    """Full paths of the ledger's Document entries by file name."""
+    documents: dict[str, list[str]] = defaultdict(list)
+    for doc in g.ledger.all_entries_by_type.Document:
+        documents[Path(doc.filename).name].append(doc.filename)
+    return documents
+
+
+def receipts_of(
     txn: Transaction, documents: dict[str, list[str]]
 ) -> list[QbReceipt]:
+    """Documents named in `document*` metadata, matched to Document entries."""
     names = [
         value
         for meta in (txn.meta, *(p.meta for p in txn.postings))
@@ -156,9 +165,7 @@ def get_qb_transactions(search: str = "", kind: str = "") -> QbTransactions:
     """
     g.ledger.changed()
     roots = _roots()
-    documents: dict[str, list[str]] = defaultdict(list)
-    for doc in g.ledger.all_entries_by_type.Document:
-        documents[Path(doc.filename).name].append(doc.filename)
+    documents = documents_by_name()
     needle = search.strip().casefold()
     counts: Counter[str] = Counter()
     rows: list[QbTransactionRow] = []
@@ -200,7 +207,7 @@ def get_qb_transactions(search: str = "", kind: str = "") -> QbTransactions:
                 paid_with=paid_with,
                 amount=amount,
                 currency=currency,
-                receipts=_receipts(entry, documents),
+                receipts=receipts_of(entry, documents),
                 tags=tags,
             )
         )

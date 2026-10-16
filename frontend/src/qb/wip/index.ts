@@ -31,16 +31,6 @@ export const wip_routes = [
     "Lock a period so entries on or before the date can't be edited.",
   ),
   wip_route(
-    "qb_customers",
-    "Customers",
-    "Everyone who has paid you, from customer: metadata.",
-  ),
-  wip_route(
-    "qb_invoices",
-    "Invoices",
-    "Stripe sends invoices today; this stays WIP unless needed outside Stripe.",
-  ),
-  wip_route(
     "qb_vendors",
     "Vendors",
     "Everyone you have paid, from vendor: metadata, with 1099 totals.",

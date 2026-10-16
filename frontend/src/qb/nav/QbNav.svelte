@@ -178,8 +178,8 @@
 />
 {#if is_open("sales")}
   <ul class="navigation">
-    <QbLink report="qb_customers" name="Customers" soon />
-    <QbLink report="qb_invoices" name="Invoices" soon />
+    <QbLink report="qb_customers" name="Customers" />
+    <QbLink report="qb_invoices" name="Invoices" />
   </ul>
 {/if}
 
