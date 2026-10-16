@@ -3,7 +3,10 @@ services:
     build:
       context: ..
       dockerfile: docker/Dockerfile
-    image: favabooks:latest
+      args:
+        VERSION: ${VERSION:-0.0.0+dev}
+    # VERSION=0.1.0 docker compose build  ->  favabooks:0.1.0
+    image: favabooks:${VERSION:-latest}
     restart: unless-stopped
     environment:
       # space-separated list: one main.beancount per entity

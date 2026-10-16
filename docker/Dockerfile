@@ -8,7 +8,10 @@ COPY --from=node /usr/local/lib/node_modules /usr/local/lib/node_modules
 RUN ln -s ../lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm
 WORKDIR /src
 COPY . .
-ENV SETUPTOOLS_SCM_PRETEND_VERSION=1.30.16+favabooks
+# .git isn't in the build context, so the version comes in as a build arg
+# (PEP 440, without the leading v of the git tag), e.g. VERSION=0.1.0.
+ARG VERSION=0.0.0+dev
+ENV SETUPTOOLS_SCM_PRETEND_VERSION=${VERSION}
 RUN pip install --no-cache-dir --root-user-action ignore build \
  && python -m build --wheel --outdir /wheels .
 
