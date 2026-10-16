@@ -1,4 +1,4 @@
-"""QuickBooks-style endpoints for the ledger-ui fork.
+"""QuickBooks-style endpoints for the favabooks fork.
 
 Imported at the top of application.py so the endpoints are registered on the
 json_api blueprint before the module-level app is created.
