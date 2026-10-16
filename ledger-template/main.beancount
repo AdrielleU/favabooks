@@ -1,0 +1,14 @@
+; Favabooks demo ledger: Sample Studio LLC (fictional).
+; Copy this folder as the starting point for a real entity's books.
+option "title" "Sample Studio LLC"
+option "operating_currency" "USD"
+option "documents" "documents"
+
+2026-01-01 custom "fava-option" "default-page" "qb_dashboard/"
+2026-01-01 custom "fava-option" "auto-reload" "true"
+2026-01-01 custom "fava-option" "invert-income-liabilities-equity" "true"
+; In a real books repo (a git repo), record every save from the UI:
+; 2026-01-01 custom "fava-extension" "fava.ext.auto_commit"
+
+include "accounts.beancount"
+include "2026.beancount"

@@ -24,17 +24,6 @@ export function wip_route(
 
 /** Pages that are planned but not built yet. Every one has a nav entry. */
 export const wip_routes = [
-  // Phase 1: placeholders until each screen lands.
-  wip_route(
-    "qb_register",
-    "Register",
-    "Spreadsheet-style account register with running balance and inline edit.",
-  ),
-  wip_route(
-    "qb_reclassify",
-    "Bulk reclassify",
-    "Filter transactions and move their postings to another account at once.",
-  ),
   // Phase 2 and 3.
   wip_route(
     "qb_reconcile",

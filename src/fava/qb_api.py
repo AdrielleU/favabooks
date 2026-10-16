@@ -10,6 +10,7 @@ import datetime
 import re
 from collections import defaultdict
 from decimal import Decimal
+from decimal import InvalidOperation
 from typing import TYPE_CHECKING
 
 from beancount.core.data import Transaction
@@ -335,3 +336,250 @@ def put_qb_accept(
         return _PENDING_FLAG.sub(r"\1*", source, count=1)
 
     return _edit_entries(entry_hashes, edit)
+
+
+# --- Bulk reclassify, register and exports (read-only) ---------------------
+
+#: Most rows the bulk reclassify search returns; narrow the filters for more.
+POSTINGS_LIMIT = 1000
+
+
+def _amount(units: object) -> tuple[Decimal, str]:
+    """Number and currency of a posting's units (always set after loading)."""
+    number = getattr(units, "number", None)
+    currency = getattr(units, "currency", "")
+    return (number if isinstance(number, Decimal) else ZERO), currency
+
+
+def _parse_decimal(value: str, name: str) -> Decimal | None:
+    if not value:
+        return None
+    try:
+        return Decimal(value)
+    except InvalidOperation:
+        msg = f"{name} must be a number"
+        raise ValidationError(msg) from None
+
+
+class QbPostingRow(Struct, frozen=True):
+    """A posting to the searched account, for bulk reclassify."""
+
+    entry_hash: str
+    date: datetime.date
+    flag: str
+    payee: str
+    narration: str
+    amount: Decimal
+    currency: str
+    #: Accounts of the transaction's other postings.
+    others: list[str]
+
+
+class QbPostings(Struct, frozen=True):
+    """Search result; `total` counts matches beyond the returned rows too."""
+
+    rows: list[QbPostingRow]
+    total: int
+
+
+@api_endpoint
+def get_qb_postings(
+    account_name: str,
+    payee: str = "",
+    min_amount: str = "",
+    max_amount: str = "",
+) -> QbPostings:
+    """Postings to exactly `account_name` in the header filters, newest first.
+
+    `payee` matches payee or narration, case-insensitively; the amount range
+    is on the absolute amount.
+    """
+    g.ledger.changed()
+    account = account_name
+    _check_account(account)
+    low = _parse_decimal(min_amount, "min_amount")
+    high = _parse_decimal(max_amount, "max_amount")
+    needle = payee.casefold()
+    rows: list[QbPostingRow] = []
+    for entry in g.filtered.entries:
+        if not isinstance(entry, Transaction):
+            continue
+        text = f"{entry.payee or ''} {entry.narration or ''}".casefold()
+        if needle not in text:
+            continue
+        for posting in entry.postings:
+            if posting.account != account:
+                continue
+            number, currency = _amount(posting.units)
+            if (low is not None and abs(number) < low) or (
+                high is not None and abs(number) > high
+            ):
+                continue
+            rows.append(
+                QbPostingRow(
+                    entry_hash=hash_entry(entry),
+                    date=entry.date,
+                    flag=entry.flag or "",
+                    payee=entry.payee or "",
+                    narration=entry.narration or "",
+                    amount=number,
+                    currency=currency,
+                    others=list(
+                        dict.fromkeys(
+                            p.account
+                            for p in entry.postings
+                            if p.account != account
+                        )
+                    ),
+                )
+            )
+    rows.reverse()
+    return QbPostings(rows[:POSTINGS_LIMIT], len(rows))
+
+
+class QbBalance(Struct, frozen=True):
+    """An amount in one currency."""
+
+    currency: str
+    amount: Decimal
+
+
+class QbRegisterRow(Struct, frozen=True):
+    """One posting in an account register, with the balance after it."""
+
+    entry_hash: str
+    date: datetime.date
+    flag: str
+    payee: str
+    narration: str
+    amount: Decimal
+    currency: str
+    balance: Decimal
+    categories: list[str]
+
+
+class QbRegister(Struct, frozen=True):
+    """An account register; rows newest first."""
+
+    account: str
+    #: Balance before the first row when a time filter is set.
+    opening: list[QbBalance]
+    rows: list[QbRegisterRow]
+
+
+@api_endpoint
+def get_qb_register(account_name: str) -> QbRegister:
+    """Register for exactly `account_name` with running balances.
+
+    Only the time filter applies: rows are limited to its range, and the
+    running balance includes everything before it.
+    """
+    g.ledger.changed()
+    account = account_name
+    _check_account(account)
+    date_range = g.filtered.date_range
+    balances: dict[str, Decimal] = defaultdict(Decimal)
+    opening: dict[str, Decimal] = defaultdict(Decimal)
+    rows: list[QbRegisterRow] = []
+    for entry in g.ledger.all_entries_by_type.Transaction:
+        if date_range is not None and entry.date >= date_range.end:
+            break
+        before = date_range is not None and entry.date < date_range.begin
+        for posting in entry.postings:
+            if posting.account != account:
+                continue
+            number, currency = _amount(posting.units)
+            balances[currency] += number
+            if before:
+                opening[currency] += number
+                continue
+            rows.append(
+                QbRegisterRow(
+                    entry_hash=hash_entry(entry),
+                    date=entry.date,
+                    flag=entry.flag or "",
+                    payee=entry.payee or "",
+                    narration=entry.narration or "",
+                    amount=number,
+                    currency=currency,
+                    balance=balances[currency],
+                    categories=list(
+                        dict.fromkeys(
+                            p.account
+                            for p in entry.postings
+                            if p.account != account
+                        )
+                    ),
+                )
+            )
+    rows.reverse()
+    return QbRegister(
+        account,
+        [QbBalance(c, n) for c, n in sorted(opening.items()) if n],
+        rows,
+    )
+
+
+class QbExport(Struct, frozen=True):
+    """A report download: run `query` via download-query as CSV or XLSX."""
+
+    key: str
+    title: str
+    description: str
+    query: str
+
+
+@api_endpoint
+def get_qb_exports(year: int) -> list[QbExport]:
+    """BQL for the year-end reports an accountant asks for.
+
+    Dates are in the query itself, because download-query ignores the
+    header filters (upstream issue #1882).
+    """
+    options = g.ledger.options
+    begin = datetime.date(year, 1, 1)
+    end = datetime.date(year + 1, 1, 1)
+    year_end = end - datetime.timedelta(days=1)
+    period = f"FROM OPEN ON {begin} CLOSE ON {end}"
+    pnl = "|".join((options["name_income"], options["name_expenses"]))
+    bs = "|".join(
+        (
+            options["name_assets"],
+            options["name_liabilities"],
+            options["name_equity"],
+        )
+    )
+    return [
+        QbExport(
+            "trial_balance",
+            "Trial balance",
+            f"Every account's balance for {year}.",
+            "SELECT account, sum(cost(position)) AS balance "
+            f"{period} GROUP BY account ORDER BY account",
+        ),
+        QbExport(
+            "profit_loss",
+            "Profit and loss",
+            f"Income and expenses by account for {year}.",
+            "SELECT account, sum(cost(position)) AS amount "
+            f"{period} WHERE account ~ '^({pnl}):' "
+            "GROUP BY account ORDER BY account",
+        ),
+        QbExport(
+            "balance_sheet",
+            "Balance sheet",
+            f"Assets, liabilities and equity at {year_end}.",
+            # Only an int year and Beancount's account-root option names are
+            # interpolated, and BQL is a read-only query over the ledger.
+            "SELECT account, sum(cost(position)) AS balance "  # noqa: S608
+            f"FROM CLOSE ON {end} CLEAR WHERE account ~ '^({bs}):' "
+            "GROUP BY account ORDER BY account",
+        ),
+        QbExport(
+            "general_ledger",
+            "General ledger",
+            f"Every posting in {year}, by account and date.",
+            "SELECT date, flag, account, payee, narration, "
+            f"cost(position) AS amount {period} ORDER BY account, date",
+        ),
+    ]

@@ -19,6 +19,11 @@ What Favabooks adds
 - Grouped left navigation and a light/dark theme (``frontend/css/qb-theme.css``)
 - Dashboard: bank balances, profit and loss this month vs last, top expenses,
   review and error counts
+- For review: accept or recategorise imported transactions, one by one or in bulk
+- Register: per-account register with running balance and inline category edits
+- Bulk reclassify: move postings between accounts across many transactions
+- Export for CPA: trial balance, P&L, balance sheet and general ledger as
+  CSV or XLSX for a chosen year
 - Placeholders for screens in progress (reconcile, customers, vendors, …)
 - Docker image and compose file (``docker/``)
 
@@ -31,7 +36,8 @@ Running it
 .. code-block:: bash
 
     make dev                       # needs uv and Node 22.22.2+ / 24.15+
-    uv run fava path/to/main.beancount
+    cp -r ledger-template /tmp/demo-books   # fictional demo company
+    uv run fava /tmp/demo-books/main.beancount
 
 or with Docker: ``cd docker && docker compose up -d --build``. Fava has no
 login, so put it behind an authenticating reverse proxy before exposing it.

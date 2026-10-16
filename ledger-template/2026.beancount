@@ -1,0 +1,713 @@
+; Sample Studio LLC: fictional demo data generated for Favabooks.
+
+2026-01-01 * "Opening balances"
+  Assets:Bank:Checking   12000.00 USD
+  Assets:Bank:Savings    20000.00 USD
+  Equity:Opening-Balances
+
+2026-01-01 * "Mesa Properties" "Office rent"
+  Assets:Bank:Checking                -1800.00 USD
+  Expenses:Rent
+
+2026-01-03 * "Acme Dental" "Invoice 01-03"
+  customer: "Acme Dental"
+  Assets:Stripe                        1164.90 USD
+  Expenses:Fees:Stripe                   35.10 USD
+  Income:Services                     -1200.00 USD
+
+2026-01-04 * "GitHub" "Subscription"
+  Liabilities:CreditCard:Visa           -21.00 USD
+  Expenses:Software                      21.00 USD
+
+2026-01-06 * "Google Workspace" "Subscription"
+  Liabilities:CreditCard:Visa           -14.00 USD
+  Expenses:Software                      14.00 USD
+
+2026-01-08 * "Figma" "Subscription"
+  Liabilities:CreditCard:Visa           -15.00 USD
+  Expenses:Software                      15.00 USD
+
+2026-01-09 * "Northwind Cafe" "Invoice 01-09"
+  customer: "Northwind Cafe"
+  Assets:Stripe                        2330.10 USD
+  Expenses:Fees:Stripe                   69.90 USD
+  Income:Services                     -2400.00 USD
+
+2026-01-12 * "Stripe" "Payout"
+  Assets:Stripe                       -3495.00 USD
+  Assets:Bank:Checking                 3495.00 USD
+
+2026-01-14 * "Comcast Business" "Subscription"
+  Liabilities:CreditCard:Visa           -89.99 USD
+  Expenses:Utilities                     89.99 USD
+
+2026-01-16 * "Bagel Barn" "Client lunch"
+  Liabilities:CreditCard:Visa           -22.44 USD
+  Expenses:Meals                         22.44 USD
+
+2026-01-17 * "Copper Leaf Yoga" "Invoice 01-17"
+  customer: "Copper Leaf Yoga"
+  Assets:Stripe                        2330.10 USD
+  Expenses:Fees:Stripe                   69.90 USD
+  Income:Services                     -2400.00 USD
+
+2026-01-20 * "Green Bowl" "Client lunch"
+  Liabilities:CreditCard:Visa           -13.52 USD
+  Expenses:Meals                         13.52 USD
+
+2026-01-20 * "Jordan Lee" "Design contractor"
+  vendor: "Jordan Lee"
+  Assets:Bank:Checking                -1100.00 USD
+  Expenses:Contractors
+
+2026-01-26 * "Desert Diner" "Client lunch"
+  Liabilities:CreditCard:Visa           -54.74 USD
+  Expenses:Meals                         54.74 USD
+
+2026-01-28 * "Chase" "Monthly service fee"
+  Assets:Bank:Checking                  -15.00 USD
+  Expenses:Fees:Bank
+
+2026-02-01 * "Mesa Properties" "Office rent"
+  Assets:Bank:Checking                -1800.00 USD
+  Expenses:Rent
+
+2026-02-03 * "Acme Dental" "Invoice 02-03"
+  customer: "Acme Dental"
+  Assets:Stripe                        1456.20 USD
+  Expenses:Fees:Stripe                   43.80 USD
+  Income:Services                     -1500.00 USD
+
+2026-02-04 * "GitHub" "Subscription"
+  Liabilities:CreditCard:Visa           -21.00 USD
+  Expenses:Software                      21.00 USD
+
+2026-02-06 * "Google Workspace" "Subscription"
+  Liabilities:CreditCard:Visa           -14.00 USD
+  Expenses:Software                      14.00 USD
+
+2026-02-08 * "Figma" "Subscription"
+  Liabilities:CreditCard:Visa           -15.00 USD
+  Expenses:Software                      15.00 USD
+
+2026-02-09 * "Blue Mesa Realty" "Invoice 02-09"
+  customer: "Blue Mesa Realty"
+  Assets:Stripe                        1164.90 USD
+  Expenses:Fees:Stripe                   35.10 USD
+  Income:Services                     -1200.00 USD
+
+2026-02-10 * "Bagel Barn" "Client lunch"
+  Liabilities:CreditCard:Visa           -30.08 USD
+  Expenses:Meals                         30.08 USD
+
+2026-02-12 * "Stripe" "Payout"
+  Assets:Stripe                       -2621.10 USD
+  Assets:Bank:Checking                 2621.10 USD
+
+2026-02-13 * "Green Bowl" "Client lunch"
+  Liabilities:CreditCard:Visa           -44.71 USD
+  Expenses:Meals                         44.71 USD
+
+2026-02-14 * "Comcast Business" "Subscription"
+  Liabilities:CreditCard:Visa           -89.99 USD
+  Expenses:Utilities                     89.99 USD
+
+2026-02-17 * "Northwind Cafe" "Invoice 02-17"
+  customer: "Northwind Cafe"
+  Assets:Stripe                        2330.10 USD
+  Expenses:Fees:Stripe                   69.90 USD
+  Income:Services                     -2400.00 USD
+
+2026-02-20 * "Jordan Lee" "Design contractor"
+  vendor: "Jordan Lee"
+  Assets:Bank:Checking                -1100.00 USD
+  Expenses:Contractors
+
+2026-02-25 * "Chase Visa" "Card payment"
+  Assets:Bank:Checking                 -459.49 USD
+  Liabilities:CreditCard:Visa           459.49 USD
+
+2026-02-27 * "Bagel Barn" "Client lunch"
+  Liabilities:CreditCard:Visa           -14.02 USD
+  Expenses:Meals                         14.02 USD
+
+2026-02-28 * "Chase" "Monthly service fee"
+  Assets:Bank:Checking                  -15.00 USD
+  Expenses:Fees:Bank
+
+2026-03-01 * "Mesa Properties" "Office rent"
+  Assets:Bank:Checking                -1800.00 USD
+  Expenses:Rent
+
+2026-03-03 * "Blue Mesa Realty" "Invoice 03-03"
+  customer: "Blue Mesa Realty"
+  Assets:Stripe                        1164.90 USD
+  Expenses:Fees:Stripe                   35.10 USD
+  Income:Services                     -1200.00 USD
+
+2026-03-04 * "GitHub" "Subscription"
+  Liabilities:CreditCard:Visa           -21.00 USD
+  Expenses:Software                      21.00 USD
+
+2026-03-06 * "Google Workspace" "Subscription"
+  Liabilities:CreditCard:Visa           -14.00 USD
+  Expenses:Software                      14.00 USD
+
+2026-03-08 * "Figma" "Subscription"
+  Liabilities:CreditCard:Visa           -15.00 USD
+  Expenses:Software                      15.00 USD
+
+2026-03-09 * "Northwind Cafe" "Invoice 03-09"
+  customer: "Northwind Cafe"
+  Assets:Stripe                        1456.20 USD
+  Expenses:Fees:Stripe                   43.80 USD
+  Income:Services                     -1500.00 USD
+
+2026-03-12 * "Stripe" "Payout"
+  Assets:Stripe                       -2621.10 USD
+  Assets:Bank:Checking                 2621.10 USD
+
+2026-03-13 * "Desert Diner" "Client lunch"
+  Liabilities:CreditCard:Visa           -32.64 USD
+  Expenses:Meals                         32.64 USD
+
+2026-03-14 * "Comcast Business" "Subscription"
+  Liabilities:CreditCard:Visa           -89.99 USD
+  Expenses:Utilities                     89.99 USD
+
+2026-03-16 * "Bagel Barn" "Client lunch"
+  Liabilities:CreditCard:Visa           -58.89 USD
+  Expenses:Meals                         58.89 USD
+
+2026-03-17 * "Copper Leaf Yoga" "Invoice 03-17"
+  customer: "Copper Leaf Yoga"
+  Assets:Stripe                         873.60 USD
+  Expenses:Fees:Stripe                   26.40 USD
+  Income:Services                      -900.00 USD
+
+2026-03-18 * "Southwest Airlines" "Client visit"
+  Liabilities:CreditCard:Visa          -601.23 USD
+  Expenses:Travel                       601.23 USD
+
+2026-03-20 * "Jordan Lee" "Design contractor"
+  vendor: "Jordan Lee"
+  Assets:Bank:Checking                -1100.00 USD
+  Expenses:Contractors
+
+2026-03-24 * "Cafe Roma" "Client lunch"
+  Liabilities:CreditCard:Visa           -36.91 USD
+  Expenses:Meals                         36.91 USD
+
+2026-03-25 * "Chase Visa" "Card payment"
+  Assets:Bank:Checking                 -869.66 USD
+  Liabilities:CreditCard:Visa           869.66 USD
+
+2026-03-27 * "Owner draw" "Transfer to personal account"
+  Assets:Bank:Checking                -2500.00 USD
+  Equity:Owner:Draws
+
+2026-03-28 * "Chase" "Monthly service fee"
+  Assets:Bank:Checking                  -15.00 USD
+  Expenses:Fees:Bank
+
+2026-04-01 * "Mesa Properties" "Office rent"
+  Assets:Bank:Checking                -1800.00 USD
+  Expenses:Rent
+
+2026-04-03 * "Copper Leaf Yoga" "Invoice 04-03"
+  customer: "Copper Leaf Yoga"
+  Assets:Stripe                        2330.10 USD
+  Expenses:Fees:Stripe                   69.90 USD
+  Income:Services                     -2400.00 USD
+
+2026-04-04 * "GitHub" "Subscription"
+  Liabilities:CreditCard:Visa           -21.00 USD
+  Expenses:Software                      21.00 USD
+
+2026-04-06 * "Google Workspace" "Subscription"
+  Liabilities:CreditCard:Visa           -14.00 USD
+  Expenses:Software                      14.00 USD
+
+2026-04-08 * "Figma" "Subscription"
+  Liabilities:CreditCard:Visa           -15.00 USD
+  Expenses:Software                      15.00 USD
+
+2026-04-09 * "Northwind Cafe" "Invoice 04-09"
+  customer: "Northwind Cafe"
+  Assets:Stripe                        2330.10 USD
+  Expenses:Fees:Stripe                   69.90 USD
+  Income:Services                     -2400.00 USD
+
+2026-04-09 * "Cafe Roma" "Client lunch"
+  Liabilities:CreditCard:Visa           -16.22 USD
+  Expenses:Meals                         16.22 USD
+
+2026-04-12 * "Stripe" "Payout"
+  Assets:Stripe                       -4660.20 USD
+  Assets:Bank:Checking                 4660.20 USD
+
+2026-04-14 * "Comcast Business" "Subscription"
+  Liabilities:CreditCard:Visa           -89.99 USD
+  Expenses:Utilities                     89.99 USD
+
+2026-04-17 * "Blue Mesa Realty" "Invoice 04-17"
+  customer: "Blue Mesa Realty"
+  Assets:Stripe                         873.60 USD
+  Expenses:Fees:Stripe                   26.40 USD
+  Income:Services                      -900.00 USD
+
+2026-04-20 * "Bagel Barn" "Client lunch"
+  Liabilities:CreditCard:Visa           -62.91 USD
+  Expenses:Meals                         62.91 USD
+
+2026-04-20 * "Jordan Lee" "Design contractor"
+  vendor: "Jordan Lee"
+  Assets:Bank:Checking                -1100.00 USD
+  Expenses:Contractors
+
+2026-04-25 * "Chase Visa" "Card payment"
+  Assets:Bank:Checking                 -277.78 USD
+  Liabilities:CreditCard:Visa           277.78 USD
+
+2026-04-26 * "Cafe Roma" "Client lunch"
+  Liabilities:CreditCard:Visa           -58.66 USD
+  Expenses:Meals                         58.66 USD
+
+2026-04-28 * "Chase" "Monthly service fee"
+  Assets:Bank:Checking                  -15.00 USD
+  Expenses:Fees:Bank
+
+2026-05-01 * "Mesa Properties" "Office rent"
+  Assets:Bank:Checking                -1800.00 USD
+  Expenses:Rent
+
+2026-05-03 * "Copper Leaf Yoga" "Invoice 05-03"
+  customer: "Copper Leaf Yoga"
+  Assets:Stripe                        2330.10 USD
+  Expenses:Fees:Stripe                   69.90 USD
+  Income:Services                     -2400.00 USD
+
+2026-05-04 * "GitHub" "Subscription"
+  Liabilities:CreditCard:Visa           -21.00 USD
+  Expenses:Software                      21.00 USD
+
+2026-05-06 * "Google Workspace" "Subscription"
+  Liabilities:CreditCard:Visa           -14.00 USD
+  Expenses:Software                      14.00 USD
+
+2026-05-08 * "Figma" "Subscription"
+  Liabilities:CreditCard:Visa           -15.00 USD
+  Expenses:Software                      15.00 USD
+
+2026-05-09 * "Northwind Cafe" "Invoice 05-09"
+  customer: "Northwind Cafe"
+  Assets:Stripe                        1164.90 USD
+  Expenses:Fees:Stripe                   35.10 USD
+  Income:Services                     -1200.00 USD
+
+2026-05-12 * "Stripe" "Payout"
+  Assets:Stripe                       -3495.00 USD
+  Assets:Bank:Checking                 3495.00 USD
+
+2026-05-14 * "Comcast Business" "Subscription"
+  Liabilities:CreditCard:Visa           -89.99 USD
+  Expenses:Utilities                     89.99 USD
+
+2026-05-16 * "Bagel Barn" "Client lunch"
+  Liabilities:CreditCard:Visa           -46.76 USD
+  Expenses:Meals                         46.76 USD
+
+2026-05-17 * "Acme Dental" "Invoice 05-17"
+  customer: "Acme Dental"
+  Assets:Stripe                         873.60 USD
+  Expenses:Fees:Stripe                   26.40 USD
+  Income:Services                      -900.00 USD
+
+2026-05-20 * "Jordan Lee" "Design contractor"
+  vendor: "Jordan Lee"
+  Assets:Bank:Checking                -1100.00 USD
+  Expenses:Contractors
+
+2026-05-22 * "Desert Diner" "Client lunch"
+  Liabilities:CreditCard:Visa           -23.06 USD
+  Expenses:Meals                         23.06 USD
+
+2026-05-24 * "Green Bowl" "Client lunch"
+  Liabilities:CreditCard:Visa           -46.51 USD
+  Expenses:Meals                         46.51 USD
+
+2026-05-25 * "Chase Visa" "Card payment"
+  Assets:Bank:Checking                 -256.32 USD
+  Liabilities:CreditCard:Visa           256.32 USD
+
+2026-05-28 * "Chase" "Monthly service fee"
+  Assets:Bank:Checking                  -15.00 USD
+  Expenses:Fees:Bank
+
+2026-06-01 * "Mesa Properties" "Office rent"
+  Assets:Bank:Checking                -1800.00 USD
+  Expenses:Rent
+
+2026-06-02 * "Bagel Barn" "Client lunch"
+  Liabilities:CreditCard:Visa           -45.72 USD
+  Expenses:Meals                         45.72 USD
+
+2026-06-03 * "Copper Leaf Yoga" "Invoice 06-03"
+  customer: "Copper Leaf Yoga"
+  Assets:Stripe                        1164.90 USD
+  Expenses:Fees:Stripe                   35.10 USD
+  Income:Services                     -1200.00 USD
+
+2026-06-03 * "Bagel Barn" "Client lunch"
+  Liabilities:CreditCard:Visa           -62.80 USD
+  Expenses:Meals                         62.80 USD
+
+2026-06-04 * "GitHub" "Subscription"
+  Liabilities:CreditCard:Visa           -21.00 USD
+  Expenses:Software                      21.00 USD
+
+2026-06-06 * "Google Workspace" "Subscription"
+  Liabilities:CreditCard:Visa           -14.00 USD
+  Expenses:Software                      14.00 USD
+
+2026-06-06 * "Green Bowl" "Client lunch"
+  Liabilities:CreditCard:Visa           -60.91 USD
+  Expenses:Meals                         60.91 USD
+
+2026-06-08 * "Figma" "Subscription"
+  Liabilities:CreditCard:Visa           -15.00 USD
+  Expenses:Software                      15.00 USD
+
+2026-06-09 * "Northwind Cafe" "Invoice 06-09"
+  customer: "Northwind Cafe"
+  Assets:Stripe                        1456.20 USD
+  Expenses:Fees:Stripe                   43.80 USD
+  Income:Services                     -1500.00 USD
+
+2026-06-12 * "Stripe" "Payout"
+  Assets:Stripe                       -2621.10 USD
+  Assets:Bank:Checking                 2621.10 USD
+
+2026-06-14 * "Comcast Business" "Subscription"
+  Liabilities:CreditCard:Visa           -89.99 USD
+  Expenses:Utilities                     89.99 USD
+
+2026-06-17 * "Blue Mesa Realty" "Invoice 06-17"
+  customer: "Blue Mesa Realty"
+  Assets:Stripe                        1456.20 USD
+  Expenses:Fees:Stripe                   43.80 USD
+  Income:Services                     -1500.00 USD
+
+2026-06-18 * "Southwest Airlines" "Client visit"
+  Liabilities:CreditCard:Visa          -859.19 USD
+  Expenses:Travel                       859.19 USD
+
+2026-06-20 * "Jordan Lee" "Design contractor"
+  vendor: "Jordan Lee"
+  Assets:Bank:Checking                -1100.00 USD
+  Expenses:Contractors
+
+2026-06-25 * "Chase Visa" "Card payment"
+  Assets:Bank:Checking                -1168.61 USD
+  Liabilities:CreditCard:Visa          1168.61 USD
+
+2026-06-27 * "Owner draw" "Transfer to personal account"
+  Assets:Bank:Checking                -2500.00 USD
+  Equity:Owner:Draws
+
+2026-06-28 * "Chase" "Monthly service fee"
+  Assets:Bank:Checking                  -15.00 USD
+  Expenses:Fees:Bank
+
+2026-07-01 * "Mesa Properties" "Office rent"
+  Assets:Bank:Checking                -1800.00 USD
+  Expenses:Rent
+
+2026-07-03 * "Blue Mesa Realty" "Invoice 07-03"
+  customer: "Blue Mesa Realty"
+  Assets:Stripe                        2330.10 USD
+  Expenses:Fees:Stripe                   69.90 USD
+  Income:Services                     -2400.00 USD
+
+2026-07-03 * "Green Bowl" "Client lunch"
+  Liabilities:CreditCard:Visa           -55.56 USD
+  Expenses:Meals                         55.56 USD
+
+2026-07-04 * "GitHub" "Subscription"
+  Liabilities:CreditCard:Visa           -21.00 USD
+  Expenses:Software                      21.00 USD
+
+2026-07-06 * "Google Workspace" "Subscription"
+  Liabilities:CreditCard:Visa           -14.00 USD
+  Expenses:Software                      14.00 USD
+
+2026-07-08 * "Figma" "Subscription"
+  Liabilities:CreditCard:Visa           -15.00 USD
+  Expenses:Software                      15.00 USD
+
+2026-07-09 * "Copper Leaf Yoga" "Invoice 07-09"
+  customer: "Copper Leaf Yoga"
+  Assets:Stripe                        2330.10 USD
+  Expenses:Fees:Stripe                   69.90 USD
+  Income:Services                     -2400.00 USD
+
+2026-07-12 * "Stripe" "Payout"
+  Assets:Stripe                       -4660.20 USD
+  Assets:Bank:Checking                 4660.20 USD
+
+2026-07-14 * "Comcast Business" "Subscription"
+  Liabilities:CreditCard:Visa           -89.99 USD
+  Expenses:Utilities                     89.99 USD
+
+2026-07-17 * "Northwind Cafe" "Invoice 07-17"
+  customer: "Northwind Cafe"
+  Assets:Stripe                        2330.10 USD
+  Expenses:Fees:Stripe                   69.90 USD
+  Income:Services                     -2400.00 USD
+
+2026-07-19 * "Cafe Roma" "Client lunch"
+  Liabilities:CreditCard:Visa           -34.63 USD
+  Expenses:Meals                         34.63 USD
+
+2026-07-20 * "Jordan Lee" "Design contractor"
+  vendor: "Jordan Lee"
+  Assets:Bank:Checking                -1100.00 USD
+  Expenses:Contractors
+
+2026-07-23 * "Bagel Barn" "Client lunch"
+  Liabilities:CreditCard:Visa           -33.55 USD
+  Expenses:Meals                         33.55 USD
+
+2026-07-25 * "Chase Visa" "Card payment"
+  Assets:Bank:Checking                 -263.73 USD
+  Liabilities:CreditCard:Visa           263.73 USD
+
+2026-07-28 * "Chase" "Monthly service fee"
+  Assets:Bank:Checking                  -15.00 USD
+  Expenses:Fees:Bank
+
+2026-08-01 * "Mesa Properties" "Office rent"
+  Assets:Bank:Checking                -1800.00 USD
+  Expenses:Rent
+
+2026-08-03 * "Blue Mesa Realty" "Invoice 08-03"
+  customer: "Blue Mesa Realty"
+  Assets:Stripe                        2330.10 USD
+  Expenses:Fees:Stripe                   69.90 USD
+  Income:Services                     -2400.00 USD
+
+2026-08-04 * "GitHub" "Subscription"
+  Liabilities:CreditCard:Visa           -21.00 USD
+  Expenses:Software                      21.00 USD
+
+2026-08-06 * "Google Workspace" "Subscription"
+  Liabilities:CreditCard:Visa           -14.00 USD
+  Expenses:Software                      14.00 USD
+
+2026-08-08 * "Figma" "Subscription"
+  Liabilities:CreditCard:Visa           -15.00 USD
+  Expenses:Software                      15.00 USD
+
+2026-08-09 * "Northwind Cafe" "Invoice 08-09"
+  customer: "Northwind Cafe"
+  Assets:Stripe                        2330.10 USD
+  Expenses:Fees:Stripe                   69.90 USD
+  Income:Services                     -2400.00 USD
+
+2026-08-10 * "Taco Loco" "Client lunch"
+  Liabilities:CreditCard:Visa           -29.73 USD
+  Expenses:Meals                         29.73 USD
+
+2026-08-12 * "Stripe" "Payout"
+  Assets:Stripe                       -4660.20 USD
+  Assets:Bank:Checking                 4660.20 USD
+
+2026-08-14 * "Comcast Business" "Subscription"
+  Liabilities:CreditCard:Visa           -89.99 USD
+  Expenses:Utilities                     89.99 USD
+
+2026-08-17 * "Acme Dental" "Invoice 08-17"
+  customer: "Acme Dental"
+  Assets:Stripe                         873.60 USD
+  Expenses:Fees:Stripe                   26.40 USD
+  Income:Services                      -900.00 USD
+
+2026-08-17 * "Desert Diner" "Client lunch"
+  Liabilities:CreditCard:Visa           -50.86 USD
+  Expenses:Meals                         50.86 USD
+
+2026-08-20 * "Jordan Lee" "Design contractor"
+  vendor: "Jordan Lee"
+  Assets:Bank:Checking                -1100.00 USD
+  Expenses:Contractors
+
+2026-08-22 * "Cafe Roma" "Client lunch"
+  Liabilities:CreditCard:Visa           -17.20 USD
+  Expenses:Meals                         17.20 USD
+
+2026-08-25 * "Chase Visa" "Card payment"
+  Assets:Bank:Checking                 -237.78 USD
+  Liabilities:CreditCard:Visa           237.78 USD
+
+2026-08-28 * "Chase" "Monthly service fee"
+  Assets:Bank:Checking                  -15.00 USD
+  Expenses:Fees:Bank
+
+2026-09-01 * "Mesa Properties" "Office rent"
+  Assets:Bank:Checking                -1800.00 USD
+  Expenses:Rent
+
+2026-09-03 * "Acme Dental" "Invoice 09-03"
+  customer: "Acme Dental"
+  Assets:Stripe                         873.60 USD
+  Expenses:Fees:Stripe                   26.40 USD
+  Income:Services                      -900.00 USD
+
+2026-09-03 * "Green Bowl" "Client lunch"
+  Liabilities:CreditCard:Visa           -51.10 USD
+  Expenses:Meals                         51.10 USD
+
+2026-09-04 * "GitHub" "Subscription"
+  Liabilities:CreditCard:Visa           -21.00 USD
+  Expenses:Software                      21.00 USD
+
+2026-09-05 * "Green Bowl" "Client lunch"
+  Liabilities:CreditCard:Visa           -46.43 USD
+  Expenses:Meals                         46.43 USD
+
+2026-09-06 * "Google Workspace" "Subscription"
+  Liabilities:CreditCard:Visa           -14.00 USD
+  Expenses:Software                      14.00 USD
+
+2026-09-08 * "Figma" "Subscription"
+  Liabilities:CreditCard:Visa           -15.00 USD
+  Expenses:Software                      15.00 USD
+
+2026-09-09 * "Copper Leaf Yoga" "Invoice 09-09"
+  customer: "Copper Leaf Yoga"
+  Assets:Stripe                        1164.90 USD
+  Expenses:Fees:Stripe                   35.10 USD
+  Income:Services                     -1200.00 USD
+
+2026-09-12 * "Stripe" "Payout"
+  Assets:Stripe                       -2038.50 USD
+  Assets:Bank:Checking                 2038.50 USD
+
+2026-09-14 * "Comcast Business" "Subscription"
+  Liabilities:CreditCard:Visa           -89.99 USD
+  Expenses:Utilities                     89.99 USD
+
+2026-09-17 * "Northwind Cafe" "Invoice 09-17"
+  customer: "Northwind Cafe"
+  Assets:Stripe                        1164.90 USD
+  Expenses:Fees:Stripe                   35.10 USD
+  Income:Services                     -1200.00 USD
+
+2026-09-18 * "Southwest Airlines" "Client visit"
+  Liabilities:CreditCard:Visa          -725.58 USD
+  Expenses:Travel                       725.58 USD
+
+2026-09-20 * "Jordan Lee" "Design contractor"
+  vendor: "Jordan Lee"
+  Assets:Bank:Checking                -1100.00 USD
+  Expenses:Contractors
+
+2026-09-21 * "Green Bowl" "Client lunch"
+  Liabilities:CreditCard:Visa           -17.67 USD
+  Expenses:Meals                         17.67 USD
+
+2026-09-25 * "Chase Visa" "Card payment"
+  Assets:Bank:Checking                 -980.77 USD
+  Liabilities:CreditCard:Visa           980.77 USD
+
+2026-09-27 * "Owner draw" "Transfer to personal account"
+  Assets:Bank:Checking                -2500.00 USD
+  Equity:Owner:Draws
+
+2026-09-28 * "Chase" "Monthly service fee"
+  Assets:Bank:Checking                  -15.00 USD
+  Expenses:Fees:Bank
+
+2026-10-01 * "Mesa Properties" "Office rent"
+  Assets:Bank:Checking                -1800.00 USD
+  Expenses:Rent
+
+2026-10-03 * "Copper Leaf Yoga" "Invoice 10-03"
+  customer: "Copper Leaf Yoga"
+  Assets:Stripe                        1164.90 USD
+  Expenses:Fees:Stripe                   35.10 USD
+  Income:Services                     -1200.00 USD
+
+2026-10-04 * "GitHub" "Subscription"
+  Liabilities:CreditCard:Visa           -21.00 USD
+  Expenses:Software                      21.00 USD
+
+2026-10-06 * "Google Workspace" "Subscription"
+  Liabilities:CreditCard:Visa           -14.00 USD
+  Expenses:Software                      14.00 USD
+
+2026-10-06 * "Bagel Barn" "Client lunch"
+  Liabilities:CreditCard:Visa           -58.06 USD
+  Expenses:Meals                         58.06 USD
+
+2026-10-08 * "Figma" "Subscription"
+  Liabilities:CreditCard:Visa           -15.00 USD
+  Expenses:Software                      15.00 USD
+
+2026-10-09 * "Blue Mesa Realty" "Invoice 10-09"
+  customer: "Blue Mesa Realty"
+  Assets:Stripe                        2330.10 USD
+  Expenses:Fees:Stripe                   69.90 USD
+  Income:Services                     -2400.00 USD
+
+2026-10-12 * "Stripe" "Payout"
+  Assets:Stripe                       -3495.00 USD
+  Assets:Bank:Checking                 3495.00 USD
+
+2026-10-13 ! "Amazon" "Imported"
+  Liabilities:CreditCard:Visa           -64.18 USD
+  Expenses:Uncategorized
+
+2026-10-14 * "Comcast Business" "Subscription"
+  Liabilities:CreditCard:Visa           -89.99 USD
+  Expenses:Utilities                     89.99 USD
+
+2026-10-14 ! "Uber" "Imported"
+  Liabilities:CreditCard:Visa           -23.40 USD
+  Expenses:Uncategorized
+
+2026-10-14 ! "Notion" "Imported"
+  Liabilities:CreditCard:Visa           -10.00 USD
+  Expenses:Uncategorized
+
+2026-10-15 ! "Office Depot" "Imported"
+  Liabilities:CreditCard:Visa          -142.77 USD
+  Expenses:Uncategorized
+
+2026-10-15 ! "Shell" "Imported"
+  Liabilities:CreditCard:Visa           -48.12 USD
+  Expenses:Uncategorized
+
+2026-10-16 ! "AZ Dept of Revenue" "Imported"
+  Assets:Bank:Checking                 -120.00 USD
+  Expenses:Uncategorized
+
+; Statement balances (Phase 1 reconciliation).
+2026-02-01 balance Assets:Bank:Checking      12580.00 USD
+2026-02-01 balance Assets:Stripe              2330.10 USD
+2026-03-01 balance Assets:Bank:Checking      11826.61 USD
+2026-03-01 balance Assets:Stripe              4660.20 USD
+2026-04-01 balance Assets:Bank:Checking       8163.05 USD
+2026-04-01 balance Assets:Stripe              5533.80 USD
+2026-05-01 balance Assets:Bank:Checking       9630.47 USD
+2026-05-01 balance Assets:Stripe              6407.40 USD
+2026-06-01 balance Assets:Bank:Checking       9954.15 USD
+2026-06-01 balance Assets:Stripe              7281.00 USD
+2026-07-01 balance Assets:Bank:Checking       5991.64 USD
+2026-07-01 balance Assets:Stripe              8737.20 USD
+2026-08-01 balance Assets:Bank:Checking       7473.11 USD
+2026-08-01 balance Assets:Stripe             11067.30 USD
+2026-09-01 balance Assets:Bank:Checking       8980.53 USD
+2026-09-01 balance Assets:Stripe             11940.90 USD
+2026-10-01 balance Assets:Bank:Checking       4623.26 USD
+2026-10-01 balance Assets:Stripe             13105.80 USD

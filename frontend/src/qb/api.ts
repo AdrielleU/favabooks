@@ -145,3 +145,68 @@ export const put_qb_reclassify = async (body: {
   from_account: string;
   to_account: string;
 }): Promise<QbEditResult> => qb_put("qb_reclassify", body, qb_edit_result);
+
+const qb_posting_row = object({
+  entry_hash: string,
+  date,
+  flag: string,
+  payee: string,
+  narration: string,
+  amount: decimal,
+  currency: string,
+  others: array(string),
+});
+
+const qb_postings = object({ rows: array(qb_posting_row), total: number });
+
+const qb_register_row = object({
+  entry_hash: string,
+  date,
+  flag: string,
+  payee: string,
+  narration: string,
+  amount: decimal,
+  currency: string,
+  balance: decimal,
+  categories: array(string),
+});
+
+const qb_register = object({
+  account: string,
+  opening: array(object({ currency: string, amount: decimal })),
+  rows: array(qb_register_row),
+});
+
+const qb_export = object({
+  key: string,
+  title: string,
+  description: string,
+  query: string,
+});
+
+export type QbPostingRow = ValidationT<typeof qb_posting_row>;
+export type QbPostings = ValidationT<typeof qb_postings>;
+export type QbRegister = ValidationT<typeof qb_register>;
+export type QbRegisterRow = ValidationT<typeof qb_register_row>;
+export type QbExport = ValidationT<typeof qb_export>;
+
+/** Search for bulk reclassify: postings to exactly one account. */
+export const get_qb_postings = async (
+  params: QbFilters & {
+    account_name: string;
+    payee: string;
+    min_amount: string;
+    max_amount: string;
+  },
+): Promise<QbPostings> => qb_get("qb_postings", { ...params }, qb_postings);
+
+/** Register for one account; only the time filter applies. */
+export const get_qb_register = async (params: {
+  account_name: string;
+  time: string;
+}): Promise<QbRegister> => qb_get("qb_register", params, qb_register);
+
+/** Year-end report queries to download as CSV or XLSX. */
+export const get_qb_exports = async (params: {
+  year: string;
+}): Promise<QbExport[]> => qb_get("qb_exports", params, array(qb_export));

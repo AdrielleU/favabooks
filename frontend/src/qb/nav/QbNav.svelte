@@ -79,6 +79,7 @@
       </ul>
     {/if}
   </Link>
+  <Link report="qb_exports" name="Export for CPA" />
 </ul>
 
 <h3>Accounting</h3>

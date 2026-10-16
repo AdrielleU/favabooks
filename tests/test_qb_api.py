@@ -268,3 +268,120 @@ def test_edit_failures_are_reported(
     assert data["changed"] == 0
     assert len(data["failed"]) == 1
     assert ledger.read_text("utf-8") == before
+
+
+# --- Bulk reclassify search, register and exports ---------------------------
+
+
+def get_json(
+    client: FlaskClient, endpoint: str, **params: object
+) -> tuple[int, object]:
+    response = client.get(f"/qb-example/api/{endpoint}", query_string=params)
+    json = response.get_json()
+    return response.status_code, json.get("data", json)
+
+
+def test_postings_search(
+    qb_client: FlaskClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def search(**params: object) -> list[tuple[str, str]]:
+        status, data = get_json(
+            qb_client, "qb_postings", account_name="Expenses:Meals", **params
+        )
+        assert status == HTTPStatus.OK.value
+        assert isinstance(data, dict)
+        return [(row["date"], row["amount"]) for row in data["rows"]]
+
+    assert search() == [("2026-03-14", "12.00"), ("2026-02-20", "40.00")]
+    assert search(payee="COFFEE") == [("2026-03-14", "12.00")]
+    assert search(min_amount="20") == [("2026-02-20", "40.00")]
+    assert search(max_amount="20") == [("2026-03-14", "12.00")]
+    assert search(time="2026-02") == [("2026-02-20", "40.00")]
+
+    _, data = get_json(qb_client, "qb_postings", account_name="Expenses:Meals")
+    assert isinstance(data, dict)
+    assert data["rows"][0]["others"] == ["Assets:Cash"]
+    assert data["rows"][0]["payee"] == "Cafe"
+
+    monkeypatch.setattr("fava.qb_api.POSTINGS_LIMIT", 1)
+    _, data = get_json(qb_client, "qb_postings", account_name="Expenses:Meals")
+    assert isinstance(data, dict)
+    assert (len(data["rows"]), data["total"]) == (1, 2)
+
+
+def test_postings_search_validation(qb_client: FlaskClient) -> None:
+    status, _ = get_json(
+        qb_client, "qb_postings", account_name="Expenses:Nope"
+    )
+    assert status == HTTPStatus.BAD_REQUEST.value
+    status, _ = get_json(
+        qb_client, "qb_postings", account_name="Expenses:Meals", min_amount="x"
+    )
+    assert status == HTTPStatus.BAD_REQUEST.value
+
+
+def test_register(qb_client: FlaskClient) -> None:
+    def register(time: str = "") -> dict[str, object]:
+        status, data = get_json(
+            qb_client,
+            "qb_register",
+            account_name="Assets:Bank:Checking",
+            time=time,
+        )
+        assert status == HTTPStatus.OK.value
+        assert isinstance(data, dict)
+        return data
+
+    data = register()
+    assert data["account"] == "Assets:Bank:Checking"
+    assert data["opening"] == []
+    rows = data["rows"]
+    assert isinstance(rows, list)
+    assert [(r["date"], r["balance"]) for r in rows] == [
+        ("2026-04-02", "1695.00"),
+        ("2026-03-12", "1700.00"),
+        ("2026-03-10", "1760.00"),
+        ("2026-03-01", "1980.00"),
+        ("2026-02-20", "1010.00"),
+        ("2026-01-10", "1050.00"),
+        ("2026-01-02", "1000.00"),
+    ]
+    assert rows[2]["categories"] == ["Expenses:Travel"]
+    assert rows[1]["flag"] == "!"
+
+    # The time filter limits rows; the balance carries everything before.
+    data = register("2026-03")
+    assert data["opening"] == [{"currency": "USD", "amount": "1010.00"}]
+    assert isinstance(data["rows"], list)
+    assert [r["date"] for r in data["rows"]] == [
+        "2026-03-12",
+        "2026-03-10",
+        "2026-03-01",
+    ]
+    # A range with no postings still shows the opening balance.
+    data = register("2026-06")
+    assert data["rows"] == []
+    assert data["opening"] == [{"currency": "USD", "amount": "1695.00"}]
+
+    status, _ = get_json(qb_client, "qb_register", account_name="Assets:Nope")
+    assert status == HTTPStatus.BAD_REQUEST.value
+
+
+def test_exports(qb_client: FlaskClient) -> None:
+    status, data = get_json(qb_client, "qb_exports", year=2026)
+    assert status == HTTPStatus.OK.value
+    assert isinstance(data, list)
+    assert [e["key"] for e in data] == [
+        "trial_balance",
+        "profit_loss",
+        "balance_sheet",
+        "general_ledger",
+    ]
+    assert "2027-01-01" in data[0]["query"]
+    for export in data:
+        response = qb_client.get(
+            "/qb-example/api/query",
+            query_string={"query_string": export["query"]},
+        )
+        result = response.get_json()["data"]
+        assert result["rows"], export["key"]
