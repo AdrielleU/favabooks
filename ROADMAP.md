@@ -23,7 +23,7 @@ and bug reports are welcome as GitHub issues.
 
 ## Next: finish Phase 1
 
-- [ ] Release v0.2.0 (importers and the new UI)
+- [x] Release v0.2.0 (importers and the new UI)
 - [ ] Verify the unverified bank layouts (Bluevine, Relay, Novo, PNC) against
   real downloads; a header row is enough
 - [ ] Category suggestions from past choices (smart_importer) so imports arrive
