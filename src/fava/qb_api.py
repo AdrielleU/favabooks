@@ -226,7 +226,7 @@ def get_qb_review() -> list[QbReviewRow]:
     g.ledger.changed()
     options = g.ledger.options
     roots = (f"{options['name_assets']}:", f"{options['name_liabilities']}:")
-    rows = []
+    rows: list[QbReviewRow] = []
     for entry in g.filtered.entries:
         if not isinstance(entry, Transaction) or entry.flag != "!":
             continue
