@@ -508,6 +508,7 @@ const qb_doc = object({
   memo: string,
   entry_hashes: array(string),
   receipts: array(qb_receipt),
+  paid_date: optional(date),
 });
 
 const qb_docs = object({
@@ -527,6 +528,7 @@ const qb_party = object({
   currency: string,
   last_date: date,
   category: string,
+  bank_paid: decimal,
 });
 
 const qb_payment = object({
@@ -573,11 +575,15 @@ export type QbDocPreview = ValidationT<typeof qb_doc_preview>;
 export const get_qb_docs = async (side: QbSide): Promise<QbDocs> =>
   qb_get(side === "invoice" ? "qb_invoices" : "qb_bills", {}, qb_docs);
 
-/** Customers or vendors. */
-export const get_qb_parties = async (side: QbSide): Promise<QbParty[]> =>
+/** Customers or vendors, with totals for the start..end period. */
+export const get_qb_parties = async (
+  side: QbSide,
+  start: string,
+  end: string,
+): Promise<QbParty[]> =>
   qb_get(
     side === "invoice" ? "qb_customers" : "qb_vendors",
-    {},
+    { start, end },
     array(qb_party),
   );
 

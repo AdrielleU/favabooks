@@ -32,9 +32,12 @@ def get_qb_invoices() -> QbDocs:
 
 
 @api_endpoint
-def get_qb_customers() -> list[QbParty]:
-    """Customers from invoices and income, biggest sales first."""
-    return list_parties(SALES)
+def get_qb_customers(start: str = "", end: str = "") -> list[QbParty]:
+    """Customers from invoices and income, biggest sales first.
+
+    Totals are for `start` to `end` (inclusive); balances are as of today.
+    """
+    return list_parties(SALES, start, end)
 
 
 @api_endpoint
@@ -84,9 +87,12 @@ def get_qb_bills() -> QbDocs:
 
 
 @api_endpoint
-def get_qb_vendors() -> list[QbParty]:
-    """Vendors from bills and expenses, biggest spending first."""
-    return list_parties(PURCHASES)
+def get_qb_vendors(start: str = "", end: str = "") -> list[QbParty]:
+    """Vendors from bills and expenses, biggest spending first.
+
+    Totals are for `start` to `end` (inclusive); balances are as of today.
+    """
+    return list_parties(PURCHASES, start, end)
 
 
 @api_endpoint

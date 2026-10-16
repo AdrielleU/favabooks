@@ -19,7 +19,18 @@
   } from "./helpers.ts";
   import ImportDocs from "./ImportDocs.svelte";
   import MatchPayment from "./MatchPayment.svelte";
+  import PeriodPicker from "./PeriodPicker.svelte";
+  import type { Period } from "./periods.ts";
+  import {
+    AGING_BUCKETS,
+    aging,
+    in_period,
+    iso,
+    sort_by,
+    to_csv,
+  } from "./periods.ts";
   import RecordDoc from "./RecordDoc.svelte";
+  import SortHeader from "./SortHeader.svelte";
   import type { SideText } from "./sides.ts";
 
   let {
@@ -27,9 +38,13 @@
     data,
     tab,
     party,
+    today,
+    period,
   }: {
     text: SideText;
     data: QbDocs;
+    today: Date;
+    period: Period;
     /** Status tab ("", unpaid, overdue, paid). */
     tab: string;
     /** Only this customer's or vendor's documents ("" for all). */
@@ -42,8 +57,12 @@
 
   let currency = $derived(data.docs[0]?.currency ?? "USD");
   let mine = $derived(
-    party ? data.docs.filter((d) => d.party === party) : data.docs,
+    data.docs.filter(
+      (d) => (!party || d.party === party) && in_period(d.date, period),
+    ),
   );
+  let buckets = $derived(aging(mine, data.today));
+  let has_unpaid = $derived(buckets.some((b) => b > 0));
   let totals = $derived(summary(mine, data.today));
   let counts = $derived(
     Object.fromEntries(
@@ -53,15 +72,75 @@
       ]),
     ),
   );
+  type SortKey = "date" | "number" | "party" | "due" | "amount" | "balance";
+  let sort_key = $state<SortKey>("date");
+  let descending = $state(true);
+  const SORT: Record<SortKey, (d: QbDoc) => string | number | Date | null> = {
+    date: (d) => d.date,
+    number: (d) => d.number,
+    party: (d) => d.party.toLowerCase(),
+    due: (d) => d.due,
+    amount: (d) => d.amount,
+    balance: (d) => d.balance,
+  };
+  function sort(key: SortKey) {
+    descending = sort_key === key ? !descending : key !== "party";
+    sort_key = key;
+  }
   let rows = $derived(
-    mine.filter(
-      (d) =>
-        in_tab(d.status, tab) &&
-        `${d.number} ${d.party} ${d.memo} ${d.categories.join(" ")}`
-          .toLowerCase()
-          .includes(query.trim().toLowerCase()),
+    sort_by(
+      mine.filter(
+        (d) =>
+          in_tab(d.status, tab) &&
+          `${d.number} ${d.party} ${d.memo} ${d.categories.join(" ")}`
+            .toLowerCase()
+            .includes(query.trim().toLowerCase()),
+      ),
+      SORT[sort_key],
+      descending,
     ),
   );
+  const cents_sum = (list: QbDoc[], pick: (d: QbDoc) => number) =>
+    list.reduce((sum, d) => sum + Math.round(pick(d) * 100), 0) / 100;
+  let party_docs = $derived(
+    party ? data.docs.filter((d) => d.party === party) : [],
+  );
+
+  function export_csv() {
+    const csv = to_csv([
+      [
+        "Date",
+        "Number",
+        text.party_title,
+        "Category",
+        "Due",
+        "Total",
+        "Paid",
+        "Balance",
+        "Status",
+        "Paid on",
+        "Currency",
+      ],
+      ...rows.map((d) => [
+        iso(d.date),
+        d.number,
+        d.party,
+        d.categories.join(" "),
+        d.due ? iso(d.due) : "",
+        d.amount.toFixed(2),
+        d.paid.toFixed(2),
+        d.balance.toFixed(2),
+        status_label(d.status),
+        d.paid_date ? iso(d.paid_date) : "",
+        d.currency,
+      ]),
+    ]);
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
+    link.download = `${text.docs_title.toLowerCase()}-${period.key}.csv`;
+    link.click();
+    URL.revokeObjectURL(link.href);
+  }
   let parties = $derived([...new Set(data.docs.map((d) => d.party))]);
   let a_doc = $derived(text.side === "invoice" ? "an invoice" : "a bill");
   let is_bill = $derived(text.side === "bill");
@@ -107,6 +186,40 @@
   </div>
 </div>
 
+{#if party}
+  <div class="qb-card party-head">
+    <div>
+      <span class="muted">{text.party_title}</span>
+      <h2>{party}</h2>
+    </div>
+    <div class="stat">
+      <span>{text.docs_title}</span>
+      <strong>{party_docs.length}</strong>
+    </div>
+    <div class="stat">
+      <span>{text.total_label}</span>
+      <strong
+        >{money(
+          cents_sum(party_docs, (d) => d.amount),
+          currency,
+        )}</strong
+      >
+    </div>
+    <div class="stat">
+      <span>Open balance</span>
+      <strong
+        >{money(
+          cents_sum(party_docs, (d) => d.balance),
+          currency,
+        )}</strong
+      >
+    </div>
+    <a href={$url_for(`${text.parties_report}/`)} class="back"
+      >All {text.parties_title.toLowerCase()}</a
+    >
+  </div>
+{/if}
+
 <div class="money-bar">
   <button
     type="button"
@@ -138,6 +251,23 @@
     <span>{text.paid_label}</span>
     <strong>{money(totals.paid_30 / 100, currency)}</strong>
   </button>
+</div>
+
+{#if has_unpaid}
+  <div class="aging" aria-label="Unpaid by days past due">
+    {#each AGING_BUCKETS as label, i (label)}
+      <div class="bucket" class:late={i > 0 && (buckets[i] ?? 0) > 0}>
+        <span class="bucket-label">{label}</span>
+        <strong class="bucket-value"
+          >{money((buckets[i] ?? 0) / 100, currency)}</strong
+        >
+      </div>
+    {/each}
+  </div>
+{/if}
+
+<div class="toolbar">
+  <PeriodPicker {period} {today} dates={data.docs.map((d) => d.date)} />
 </div>
 
 <div class="toolbar">
@@ -183,13 +313,57 @@
     <table>
       <thead>
         <tr>
-          <th>Date</th>
-          <th>No.</th>
-          <th>{text.party_title}</th>
+          <SortHeader
+            label="Date"
+            active={sort_key === "date"}
+            {descending}
+            onsort={() => {
+              sort("date");
+            }}
+          />
+          <SortHeader
+            label="No."
+            active={sort_key === "number"}
+            {descending}
+            onsort={() => {
+              sort("number");
+            }}
+          />
+          <SortHeader
+            label={text.party_title}
+            active={sort_key === "party"}
+            {descending}
+            onsort={() => {
+              sort("party");
+            }}
+          />
           {#if is_bill}<th>Category</th>{/if}
-          <th>Due</th>
-          <th class="num">Total</th>
-          <th class="num">Balance</th>
+          <SortHeader
+            label="Due"
+            active={sort_key === "due"}
+            {descending}
+            onsort={() => {
+              sort("due");
+            }}
+          />
+          <SortHeader
+            label="Total"
+            active={sort_key === "amount"}
+            {descending}
+            num
+            onsort={() => {
+              sort("amount");
+            }}
+          />
+          <SortHeader
+            label="Balance"
+            active={sort_key === "balance"}
+            {descending}
+            num
+            onsort={() => {
+              sort("balance");
+            }}
+          />
           <th>Status</th>
           <th class="icon-col"><span class="sr">File</span></th>
           <th></th>
@@ -238,10 +412,11 @@
             <td class="num">{money(d.balance, d.currency)}</td>
             <td>
               <span class="status {d.status}">{status_label(d.status)}</span>
-              {#if d.status === "paid" && d.paid_with.length}
+              {#if d.paid_date && d.status === "paid"}
                 <span class="muted sub paid-with" title={d.paid_with.join(", ")}
-                  >{text.paid_with_label}
-                  {d.paid_with.map(last).join(", ")}</span
+                  >{short_date(d.paid_date)}{d.paid_with.length
+                    ? ` ${text.paid_with_label} ${d.paid_with.map(last).join(", ")}`
+                    : ""}</span
                 >
               {/if}
             </td>
@@ -270,7 +445,33 @@
           </tr>
         {/each}
       </tbody>
+      <tfoot>
+        <tr>
+          <td colspan={is_bill ? 5 : 4}>
+            {rows.length}
+            {rows.length === 1 ? text.doc : `${text.doc}s`}
+          </td>
+          <td class="num"
+            >{money(
+              cents_sum(rows, (d) => d.amount),
+              currency,
+            )}</td
+          >
+          <td class="num"
+            >{money(
+              cents_sum(rows, (d) => d.balance),
+              currency,
+            )}</td
+          >
+          <td colspan="3"></td>
+        </tr>
+      </tfoot>
     </table>
+  </div>
+  <div class="below">
+    <button type="button" class="qb-secondary small" onclick={export_csv}>
+      <Icon name="download" size={15} /> Export CSV
+    </button>
   </div>
 {:else if data.docs.length}
   <p class="qb-card muted">No {text.docs_title.toLowerCase()} here.</p>
@@ -514,6 +715,81 @@
 
   .plain {
     color: inherit;
+  }
+
+  .party-head {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.8rem 2rem;
+    align-items: center;
+    margin-bottom: 1rem;
+  }
+
+  .party-head h2 {
+    margin: 0;
+    font-size: 1.3rem;
+  }
+
+  .party-head .stat {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .party-head .stat span {
+    font-size: 0.85rem;
+    color: var(--qb-muted);
+  }
+
+  .party-head .stat strong {
+    font-size: 1.2rem;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .back {
+    margin-left: auto;
+    font-weight: 600;
+    color: var(--qb-accent);
+  }
+
+  .aging {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 8rem), 1fr));
+    margin-bottom: 1rem;
+    overflow: hidden;
+    background: var(--qb-surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+  }
+
+  .bucket {
+    display: flex;
+    flex-direction: column;
+    padding: 0.5rem 0.8rem;
+    border-right: 1px solid var(--border);
+  }
+
+  .bucket-label {
+    font-size: 0.8rem;
+    color: var(--qb-muted);
+  }
+
+  .bucket-value {
+    font-variant-numeric: tabular-nums;
+  }
+
+  .late .bucket-value {
+    color: var(--error);
+  }
+
+  tfoot td {
+    font-weight: 600;
+    border-bottom: none;
+  }
+
+  .below {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 0.6rem;
   }
 
   .cell-line {

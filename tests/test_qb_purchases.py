@@ -211,3 +211,45 @@ def test_bill_csv_import(client: FlaskClient) -> None:
     )
     assert status == HTTPStatus.BAD_REQUEST.value
     assert "Expenses account" in data["detail"]
+
+
+def test_vendor_periods_and_bank_payments(client: FlaskClient) -> None:
+    record(client)
+    payments = ok(client, "get", "qb_bill_payments", key="Design Co / D-7")
+    ok(
+        client,
+        "put",
+        "qb_bill_payment",
+        key="Design Co / D-7",
+        entry_hash=payments[0]["entry_hash"],
+    )
+    assert bills(client)["Design Co / D-7"]["paid_date"] == "2026-03-01"
+    assert bills(client)["ZenBusiness / 1177261"]["paid_date"] == "2026-02-01"
+
+    vendors = {v["name"]: v for v in ok(client, "get", "qb_vendors")}
+    # Card payments aren't 1099-NEC payments; bank payments are.
+    assert vendors["ZenBusiness"]["bank_paid"] == "0"
+    assert vendors["Design Co"]["bank_paid"] == "500.00"
+    assert vendors["Coffee shop"]["bank_paid"] == "5.00"
+
+    march = {
+        v["name"]: v
+        for v in ok(client, "get", "qb_vendors", start="2026-03-01", end="")
+    }
+    assert (march["ZenBusiness"]["docs"], march["ZenBusiness"]["total"]) == (
+        0,
+        "0",
+    )
+    assert march["Design Co"]["docs"] == 0  # billed in February
+    assert march["Design Co"]["bank_paid"] == "500.00"  # paid in March
+    february = {
+        v["name"]: v
+        for v in ok(
+            client, "get", "qb_vendors", start="2026-02-01", end="2026-02-28"
+        )
+    }
+    assert february["Coffee shop"]["total"] == "5.00"
+    assert february["Design Co"]["bank_paid"] == "0"
+    status, data = call(client, "get", "qb_vendors", start="March")
+    assert status == HTTPStatus.BAD_REQUEST.value
+    assert "2026-01-31" in data["detail"]

@@ -232,6 +232,8 @@ class QbDoc(Struct, frozen=True):
     #: The document's entry first, then payments.
     entry_hashes: list[str]
     receipts: list[QbReceipt]
+    #: Date of the last payment (None while nothing is paid).
+    paid_date: datetime.date | None = None
 
 
 @dataclass
@@ -246,6 +248,7 @@ class _Doc:
     direct: bool = False
     memo: str = ""
     email: str = ""
+    paid_date: datetime.date | None = None
     paid_with: list[str] = field(default_factory=list)
     categories: list[str] = field(default_factory=list)
     entry_hashes: list[str] = field(default_factory=list)
@@ -296,6 +299,8 @@ def collect(side: Side) -> dict[str, _Doc]:
             doc.due = due if isinstance(due, datetime.date) else None
         doc.billed += billed
         doc.paid += paid
+        if paid > 0:
+            doc.paid_date = max(doc.paid_date or txn.date, txn.date)
         doc.currency = doc.currency or currency
         doc.email = doc.email or _text(txn.meta.get(f"{side.party}_email"))
         for posting in txn.postings:
@@ -369,6 +374,7 @@ def list_docs(side: Side) -> QbDocs:
             memo=doc.memo,
             entry_hashes=doc.entry_hashes,
             receipts=doc.receipts,
+            paid_date=doc.paid_date,
         )
         for key, doc in collect(side).items()
     ]
@@ -394,6 +400,9 @@ class QbParty(Struct, frozen=True):
     last_date: datetime.date
     #: Their most used income or expense account.
     category: str
+    #: Vendors: paid from bank or cash (not cards) in the period, the
+    #: payments a 1099-NEC counts; card payments go on the card's 1099-K.
+    bank_paid: Decimal = ZERO
 
 
 @dataclass
@@ -406,11 +415,56 @@ class _Party:
     currency: str = ""
     last_date: datetime.date = datetime.date.min
     categories: Counter[str] = field(default_factory=Counter)
+    bank_paid: Decimal = ZERO
 
 
-def list_parties(side: Side) -> list[QbParty]:
-    """Customers or vendors from documents and transactions, biggest first."""
+def parse_period(
+    start: str, end: str
+) -> tuple[datetime.date | None, datetime.date | None]:
+    """Inclusive start and end dates ("" for open-ended)."""
+    try:
+        return (
+            datetime.date.fromisoformat(start) if start else None,
+            datetime.date.fromisoformat(end) if end else None,
+        )
+    except ValueError:
+        msg = "dates look like 2026-01-31"
+        raise ValidationError(msg) from None
+
+
+def _in_period(
+    date: datetime.date | None,
+    period: tuple[datetime.date | None, datetime.date | None],
+) -> bool:
+    start, end = period
+    return date is not None and (
+        (start is None or date >= start) and (end is None or date <= end)
+    )
+
+
+def _bank_paid(side: Side, txn: Transaction) -> Decimal:
+    """Money a purchase took out of bank or cash accounts (not cards)."""
+    assets = _root_name("name_assets")
+    if side.sign > 0 or not any(
+        side.is_category(p.account) or side.is_ledger(p.account)
+        for p in txn.postings
+    ):
+        return ZERO
+    _, out, _ = _sums(
+        txn, lambda a: a.startswith(f"{assets}:") and side.is_money(a)
+    )
+    return out
+
+
+def list_parties(side: Side, start: str = "", end: str = "") -> list[QbParty]:
+    """Customers or vendors from documents and transactions, biggest first.
+
+    Totals, document counts and bank payments are for the period from
+    `start` to `end` (inclusive, open-ended when empty); open and overdue
+    balances are as of today.
+    """
     g.ledger.changed()
+    period = parse_period(start, end)
     today = local_today()
     parties: dict[str, _Party] = {}
 
@@ -420,8 +474,9 @@ def list_parties(side: Side) -> list[QbParty]:
     for doc in collect(side).values():
         p = party(doc.party)
         p.email = p.email or doc.email
-        p.docs += 1
-        p.total += doc.billed
+        if _in_period(doc.date, period):
+            p.docs += 1
+            p.total += doc.billed
         balance = doc.billed - doc.paid
         if balance > 0:
             p.open_balance += balance
@@ -431,16 +486,23 @@ def list_parties(side: Side) -> list[QbParty]:
         p.last_date = max(p.last_date, doc.date or p.last_date)
         p.categories.update(doc.categories)
     for txn in g.ledger.all_entries_by_type.Transaction:
-        if _text(txn.meta.get("invoice")) or side.excluded(txn):
+        if side.excluded(txn):
+            continue
+        in_period = _in_period(txn.date, period)
+        bank = _bank_paid(side, txn)
+        if bank and in_period:
+            party(_party(side, txn)).bank_paid += bank
+        if _text(txn.meta.get("invoice")):
             continue
         positive, negative, currency = _sums(txn, side.is_category)
         if not currency:
             continue
         p = party(_party(side, txn))
         p.email = p.email or _text(txn.meta.get(f"{side.party}_email"))
-        p.total += (
-            negative - positive if side.sign > 0 else positive - negative
-        )
+        if in_period:
+            p.total += (
+                negative - positive if side.sign > 0 else positive - negative
+            )
         p.currency = p.currency or currency
         p.last_date = max(p.last_date, txn.date)
         p.categories.update(
@@ -457,6 +519,7 @@ def list_parties(side: Side) -> list[QbParty]:
             p.currency,
             p.last_date,
             p.categories.most_common(1)[0][0] if p.categories else "",
+            p.bank_paid,
         )
         for name, p in parties.items()
     ]

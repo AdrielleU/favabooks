@@ -8,9 +8,47 @@
   import { money, short_date } from "../format.ts";
   import Icon from "../Icon.svelte";
   import { leaf } from "../transactions/helpers.ts";
+  import PeriodPicker from "./PeriodPicker.svelte";
+  import type { Period } from "./periods.ts";
+  import { iso, nec_threshold, sort_by, to_csv } from "./periods.ts";
+  import SortHeader from "./SortHeader.svelte";
   import type { SideText } from "./sides.ts";
 
-  let { text, parties }: { text: SideText; parties: QbParty[] } = $props();
+  let {
+    text,
+    parties,
+    today,
+    period,
+    dates,
+  }: {
+    text: SideText;
+    parties: QbParty[];
+    today: Date;
+    period: Period;
+    dates: Date[];
+  } = $props();
+
+  /** The 1099-NEC threshold for the period's year. */
+  let threshold = $derived(nec_threshold(period, today));
+  let is_vendor = $derived(text.side === "bill");
+
+  type SortKey =
+    "name" | "docs" | "total" | "open" | "overdue" | "bank" | "last";
+  let sort_key = $state<SortKey>("total");
+  let descending = $state(true);
+  const SORT: Record<SortKey, (p: QbParty) => string | number | Date> = {
+    name: (p) => p.name.toLowerCase(),
+    docs: (p) => p.docs,
+    total: (p) => p.total,
+    open: (p) => p.open_balance,
+    overdue: (p) => p.overdue,
+    bank: (p) => p.bank_paid,
+    last: (p) => p.last_date,
+  };
+  function sort(key: SortKey) {
+    descending = sort_key === key ? !descending : key !== "name";
+    sort_key = key;
+  }
 
   let query = $state("");
   let only_owing = $state(false);
@@ -22,18 +60,57 @@
   let overdue_total = $derived(cents(parties, (p) => p.overdue));
   let total = $derived(cents(parties, (p) => p.total));
   let rows = $derived(
-    parties.filter(
-      (p) =>
-        (!only_owing || p.open_balance > 0) &&
-        `${p.name} ${p.email} ${p.category}`
-          .toLowerCase()
-          .includes(query.trim().toLowerCase()),
+    sort_by(
+      parties.filter(
+        (p) =>
+          (!only_owing || p.open_balance > 0) &&
+          `${p.name} ${p.email} ${p.category}`
+            .toLowerCase()
+            .includes(query.trim().toLowerCase()),
+      ),
+      SORT[sort_key],
+      descending,
     ),
   );
+
+  function export_csv() {
+    const csv = to_csv([
+      [
+        text.party_title,
+        "Email",
+        "Usual category",
+        text.docs_title,
+        text.total_label,
+        "Open balance",
+        "Overdue",
+        ...(is_vendor ? ["Paid by bank or check"] : []),
+        "Last activity",
+      ],
+      ...rows.map((p) => [
+        p.name,
+        p.email,
+        p.category,
+        p.docs,
+        p.total.toFixed(2),
+        p.open_balance.toFixed(2),
+        p.overdue.toFixed(2),
+        ...(is_vendor ? [p.bank_paid.toFixed(2)] : []),
+        iso(p.last_date),
+      ]),
+    ]);
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
+    link.download = `${text.parties_title.toLowerCase()}-${period.key}.csv`;
+    link.click();
+    URL.revokeObjectURL(link.href);
+  }
   let docs_url = $derived(`${text.docs_report}/` as const);
 </script>
 
-<p class="intro muted">{text.parties_intro}</p>
+<div class="head">
+  <p class="intro muted">{text.parties_intro}</p>
+  <PeriodPicker {period} {today} {dates} />
+</div>
 
 <div class="cards">
   <div class="qb-card stat">
@@ -41,7 +118,9 @@
     <strong>{parties.length}</strong>
   </div>
   <div class="qb-card stat">
-    <span>{text.total_label}</span>
+    <span
+      >{text.total_label}{period.key === "all" ? "" : `, ${period.label}`}</span
+    >
     <strong>{money(total, currency)}</strong>
   </div>
   <a class="qb-card stat" href={$url_for(docs_url, { status: "unpaid" })}>
@@ -76,13 +155,68 @@
     <table>
       <thead>
         <tr>
-          <th>{text.party_title}</th>
+          <SortHeader
+            label={text.party_title}
+            active={sort_key === "name"}
+            {descending}
+            onsort={() => {
+              sort("name");
+            }}
+          />
           <th>Usual category</th>
-          <th class="num">{text.docs_title}</th>
-          <th class="num">{text.side === "invoice" ? "Sales" : "Spent"}</th>
-          <th class="num">Open balance</th>
-          <th class="num">Overdue</th>
-          <th>Last activity</th>
+          <SortHeader
+            label={text.docs_title}
+            active={sort_key === "docs"}
+            {descending}
+            num
+            onsort={() => {
+              sort("docs");
+            }}
+          />
+          <SortHeader
+            label={text.side === "invoice" ? "Sales" : "Spent"}
+            active={sort_key === "total"}
+            {descending}
+            num
+            onsort={() => {
+              sort("total");
+            }}
+          />
+          <SortHeader
+            label="Open balance"
+            active={sort_key === "open"}
+            {descending}
+            num
+            onsort={() => {
+              sort("open");
+            }}
+          />
+          <SortHeader
+            label="Overdue"
+            active={sort_key === "overdue"}
+            {descending}
+            num
+            onsort={() => {
+              sort("overdue");
+            }}
+          />
+          {#if is_vendor}<SortHeader
+              label="Bank / check"
+              active={sort_key === "bank"}
+              {descending}
+              num
+              onsort={() => {
+                sort("bank");
+              }}
+            />{/if}
+          <SortHeader
+            label="Last activity"
+            active={sort_key === "last"}
+            {descending}
+            onsort={() => {
+              sort("last");
+            }}
+          />
         </tr>
       </thead>
       <tbody>
@@ -103,17 +237,46 @@
             <td class="num" class:negative={p.overdue > 0}>
               {p.overdue ? money(p.overdue, p.currency) : "—"}
             </td>
+            {#if is_vendor}
+              <td class="num">
+                {p.bank_paid ? money(p.bank_paid, p.currency) : "—"}
+                {#if p.bank_paid >= threshold}
+                  <span
+                    class="nec"
+                    title="Paid {money(
+                      p.bank_paid,
+                      p.currency,
+                    )} by bank or check: check whether this vendor needs a 1099-NEC (ask for a W-9)."
+                    >1099?</span
+                  >
+                {/if}
+              </td>
+            {/if}
             <td class="nowrap">{short_date(p.last_date)}</td>
           </tr>
         {:else}
           <tr
-            ><td colspan="7" class="muted"
+            ><td colspan="8" class="muted"
               >No {text.parties_title.toLowerCase()} match.</td
             ></tr
           >
         {/each}
       </tbody>
     </table>
+  </div>
+  <div class="below">
+    {#if is_vendor}
+      <p class="muted small-note">
+        Bank / check is what you paid each vendor from bank or cash accounts in
+        the period. Those payments count toward a 1099-NEC (flagged from
+        {money(threshold, currency)} for this period's year); card and PayPal payments
+        don't, they're reported on a 1099-K. Pick a year above to review a tax year,
+        and confirm with your CPA.
+      </p>
+    {/if}
+    <button type="button" class="qb-secondary small" onclick={export_csv}>
+      <Icon name="download" size={15} /> Export CSV
+    </button>
   </div>
 {:else}
   <div class="qb-card empty">
@@ -127,9 +290,49 @@
 {/if}
 
 <style>
+  .head {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem 1rem;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+  }
+
   .intro {
     max-width: 50rem;
-    margin: 0 0 1rem;
+    margin: 0;
+  }
+
+  .nec {
+    display: inline-block;
+    padding: 0 0.4em;
+    margin-left: 0.3em;
+    font-size: 0.75em;
+    font-weight: 700;
+    color: var(--warning);
+    border: 1px solid currentcolor;
+    border-radius: 999px;
+  }
+
+  .below {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem 1rem;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-top: 0.6rem;
+  }
+
+  .small-note {
+    max-width: 46rem;
+    margin: 0;
+    font-size: 0.85em;
+  }
+
+  .small {
+    padding: 0.3em 0.9em;
+    font-size: 0.88em;
   }
 
   .muted {
