@@ -6,15 +6,37 @@
 <script lang="ts">
   import { url_for, url_for_raw } from "../../helpers.ts";
   import { router } from "../../router.ts";
+  import type { QbTransactionRow } from "../api.ts";
+  import PeriodPicker from "../docs/PeriodPicker.svelte";
+  import { iso, sort_by, to_csv } from "../docs/periods.ts";
+  import SortHeader from "../docs/SortHeader.svelte";
   import { money, short_date } from "../format.ts";
   import Icon from "../Icon.svelte";
   import { KIND_TABS, kind_label, leaf, totals } from "./helpers.ts";
   import type { TransactionsProps } from "./index.ts";
 
-  let { search, kind, result }: TransactionsProps = $props();
+  let { search, kind, result, today, period }: TransactionsProps = $props();
+
+  type SortKey = "date" | "type" | "payee" | "category" | "paid" | "amount";
+  let sort_key = $state<SortKey>("date");
+  let descending = $state(true);
+  const SORT: Record<SortKey, (r: QbTransactionRow) => string | number | Date> =
+    {
+      date: (r) => r.date,
+      type: (r) => r.kind,
+      payee: (r) => (r.payee || r.narration).toLowerCase(),
+      category: (r) => r.categories.join(" ").toLowerCase(),
+      paid: (r) => r.paid_with.join(" ").toLowerCase(),
+      amount: (r) => r.amount,
+    };
+  function sort(key: SortKey) {
+    descending =
+      sort_key === key ? !descending : key === "date" || key === "amount";
+    sort_key = key;
+  }
 
   let query = $derived(search);
-  let rows = $derived(result.rows);
+  let rows = $derived(sort_by(result.rows, SORT[sort_key], descending));
   let currency = $derived(rows[0]?.currency ?? "USD");
   let sums = $derived(totals(rows));
   let tabs = $derived(
@@ -36,11 +58,77 @@
     router.navigate(url);
   }
 
+  function export_csv() {
+    const csv = to_csv([
+      [
+        "Date",
+        "Type",
+        "Payee",
+        "Description",
+        "Category",
+        "Paid with",
+        "Amount",
+        "Currency",
+        "Needs review",
+        "Receipt",
+      ],
+      ...rows.map((r) => [
+        iso(r.date),
+        kind_label(r.kind),
+        r.payee,
+        r.narration,
+        r.categories.join(" "),
+        r.paid_with.join(" "),
+        r.amount.toFixed(2),
+        r.currency,
+        r.flag === "!" ? "yes" : "",
+        r.receipts.map((x) => x.name).join(" "),
+      ]),
+    ]);
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
+    link.download = `transactions-${period.key}.csv`;
+    link.click();
+    URL.revokeObjectURL(link.href);
+  }
+
   function run_search(event: SubmitEvent) {
     event.preventDefault();
     go({ search: query.trim() });
   }
 </script>
+
+<div class="cards">
+  <div class="qb-card stat">
+    <span>Transactions</span>
+    <strong>{result.counts.all ?? 0}</strong>
+  </div>
+  <div class="qb-card stat">
+    <span>Money out (expenses)</span>
+    <strong>{money(sums.expense / 100, currency)}</strong>
+  </div>
+  <div class="qb-card stat">
+    <span>Money in (income)</span>
+    <strong class="in">{money(sums.income / 100, currency)}</strong>
+  </div>
+  <button
+    type="button"
+    class="qb-card stat review-card"
+    onclick={() => {
+      go({ kind: "review" });
+    }}
+  >
+    <span>Needs review</span>
+    <strong class:warn={(result.counts.review ?? 0) > 0}
+      >{result.counts.review ?? 0}</strong
+    >
+  </button>
+</div>
+
+<div class="period-row">
+  <PeriodPicker {period} {today} dates={result.months} />
+  {#if period.key !== "all"}<span class="muted">{period.label}</span>{/if}
+</div>
 
 <div class="top">
   <div class="tabs" role="tablist">
@@ -78,28 +166,28 @@
   </form>
 </div>
 
-<p class="summary">
-  <strong>{result.total}</strong>
-  transaction{result.total === 1 ? "" : "s"}
-  {#if sums.expense}· <strong>{money(sums.expense / 100, currency)}</strong>
-    spent{/if}
-  {#if sums.income}· <strong>{money(sums.income / 100, currency)}</strong>
-    received{/if}
-  {#if search}· matching “{search}”{/if}
-  <span class="muted">· the Time filter in the header limits the dates</span>
-</p>
+{#if search}
+  <p class="summary">
+    {result.total} matching “{search}”
+  </p>
+{/if}
 
 {#if rows.length}
   <div class="qb-card table-card">
     <table>
       <thead>
         <tr>
-          <th>Date</th>
-          <th>Type</th>
-          <th>Payee</th>
-          <th>Category</th>
-          <th>Paid with</th>
-          <th class="num">Amount</th>
+          {#each [["date", "Date"], ["type", "Type"], ["payee", "Payee"], ["category", "Category"], ["paid", "Paid with"], ["amount", "Amount"]] as const as [key, label] (key)}
+            <SortHeader
+              {label}
+              active={sort_key === key}
+              {descending}
+              num={key === "amount"}
+              onsort={() => {
+                sort(key);
+              }}
+            />
+          {/each}
           <th class="icon-col"><span class="sr">Receipt</span></th>
         </tr>
       </thead>
@@ -170,12 +258,41 @@
           </tr>
         {/each}
       </tbody>
+      <tfoot>
+        <tr>
+          <td colspan="5">
+            {rows.length} transaction{rows.length === 1 ? "" : "s"}
+            {#if sums.expense && sums.income}
+              <span class="muted"
+                >· net {money(
+                  (sums.income - sums.expense) / 100,
+                  currency,
+                )}</span
+              >
+            {/if}
+          </td>
+          <td class="num">
+            {#if sums.expense}<span class="foot-line"
+                >{money(sums.expense / 100, currency)} out</span
+              >{/if}
+            {#if sums.income}<span class="foot-line in"
+                >{money(sums.income / 100, currency)} in</span
+              >{/if}
+          </td>
+          <td></td>
+        </tr>
+      </tfoot>
     </table>
+  </div>
+  <div class="below">
+    <button type="button" class="qb-secondary small" onclick={export_csv}>
+      <Icon name="download" size={15} /> Export CSV
+    </button>
   </div>
   {#if result.total > rows.length}
     <p class="muted">
-      Showing the newest {rows.length}. Narrow the Time filter or search to see
-      the rest.
+      Showing the newest {rows.length}. Narrow the dates or search to see the
+      rest.
     </p>
   {/if}
 {:else}
@@ -243,6 +360,69 @@
     outline: none;
     background: none;
     border: none;
+  }
+
+  .cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 11rem), 1fr));
+    gap: 0.8rem;
+    margin-bottom: 1rem;
+  }
+
+  .stat {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    align-items: flex-start;
+    color: inherit;
+    text-align: left;
+  }
+
+  .stat span {
+    font-size: 0.85rem;
+    color: var(--qb-muted);
+  }
+
+  .stat strong {
+    font-size: 1.4rem;
+    font-weight: 650;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .review-card {
+    font: inherit;
+    cursor: pointer;
+  }
+
+  .stat .warn {
+    color: var(--warning);
+  }
+
+  .period-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+    align-items: center;
+    margin-bottom: 0.7rem;
+  }
+
+  .foot-line {
+    display: block;
+  }
+
+  .in {
+    color: var(--qb-accent);
+  }
+
+  .below {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 0.6rem;
+  }
+
+  .small {
+    padding: 0.3em 0.9em;
+    font-size: 0.88em;
   }
 
   .summary {
@@ -391,5 +571,10 @@
   .raw {
     margin-top: 1.2rem;
     font-size: 0.9em;
+  }
+
+  tfoot td {
+    font-weight: 600;
+    border-bottom: none;
   }
 </style>

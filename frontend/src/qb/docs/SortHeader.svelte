@@ -25,6 +25,18 @@
 </th>
 
 <style>
+  /* Matches the th rules of the pages using it (styles are per component). */
+  th {
+    padding: 0.55em 0.75em;
+    font-weight: 500;
+    color: var(--text-color-lighter);
+    text-align: left;
+    white-space: nowrap;
+    background: var(--background-darker);
+    border: none;
+    border-bottom: 1px solid var(--border);
+  }
+
   .num {
     text-align: right;
   }

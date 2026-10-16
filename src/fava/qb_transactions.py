@@ -8,7 +8,7 @@ categories, the account it was paid with, and any receipts linked through
 
 from __future__ import annotations
 
-import datetime  # noqa: TC003 (msgspec reads the annotations)
+import datetime
 from collections import Counter
 from collections import defaultdict
 from decimal import Decimal
@@ -21,6 +21,7 @@ from fava.beans.abc import Transaction
 from fava.beans.funcs import hash_entry
 from fava.context import g
 from fava.json_api import api_endpoint
+from fava.json_api import ValidationError
 
 if TYPE_CHECKING:  # pragma: no cover
     from fava.beans.abc import Posting
@@ -61,6 +62,31 @@ class QbTransactionRow(Struct, frozen=True):
     tags: list[str]
 
 
+def parse_period(
+    start: str, end: str
+) -> tuple[datetime.date | None, datetime.date | None]:
+    """Inclusive start and end dates ("" for open-ended)."""
+    try:
+        return (
+            datetime.date.fromisoformat(start) if start else None,
+            datetime.date.fromisoformat(end) if end else None,
+        )
+    except ValueError:
+        msg = "dates look like 2026-01-31"
+        raise ValidationError(msg) from None
+
+
+def in_period(
+    date: datetime.date | None,
+    period: tuple[datetime.date | None, datetime.date | None],
+) -> bool:
+    """Whether `date` is in the inclusive (start, end) period."""
+    start, end = period
+    return date is not None and (
+        (start is None or date >= start) and (end is None or date <= end)
+    )
+
+
 class QbTransactions(Struct, frozen=True):
     """Matching transactions (newest first) and counts per kind."""
 
@@ -68,6 +94,8 @@ class QbTransactions(Struct, frozen=True):
     total: int
     #: Counts per kind before the kind filter, plus "all" and "review".
     counts: dict[str, int]
+    #: First day of each month with transactions (for the date picker).
+    months: list[datetime.date]
 
 
 def _roots() -> dict[str, str]:
@@ -157,13 +185,18 @@ def receipts_of(
 
 
 @api_endpoint
-def get_qb_transactions(search: str = "", kind: str = "") -> QbTransactions:
+def get_qb_transactions(
+    search: str = "", kind: str = "", start: str = "", end: str = ""
+) -> QbTransactions:
     """Transactions in the header filters, newest first.
 
     `search` matches payee, description, accounts, tags and the amount;
-    `kind` is one of expense, income, transfer, other or review (flagged !).
+    `kind` is one of expense, income, transfer, other or review (flagged !);
+    `start` and `end` limit the dates (inclusive).
     """
     g.ledger.changed()
+    period = parse_period(start, end)
+    months: set[datetime.date] = set()
     roots = _roots()
     documents = documents_by_name()
     needle = search.strip().casefold()
@@ -171,6 +204,9 @@ def get_qb_transactions(search: str = "", kind: str = "") -> QbTransactions:
     rows: list[QbTransactionRow] = []
     for entry in g.filtered.entries:
         if not isinstance(entry, Transaction) or entry.flag in SYNTHETIC_FLAGS:
+            continue
+        months.add(entry.date.replace(day=1))
+        if not in_period(entry.date, period):
             continue
         txn_kind, amount, currency, categories, paid_with = _classify(
             entry, roots
@@ -216,6 +252,7 @@ def get_qb_transactions(search: str = "", kind: str = "") -> QbTransactions:
         rows[:TRANSACTIONS_LIMIT],
         len(rows),
         {name: counts[name] for name in ("all", *KINDS, "review")},
+        sorted(months),
     )
 
 

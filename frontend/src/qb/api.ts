@@ -459,6 +459,7 @@ const qb_transactions = object({
   ),
   total: number,
   counts: record(number),
+  months: array(date),
 });
 
 const qb_category = object({
@@ -474,7 +475,12 @@ export type QbCategory = ValidationT<typeof qb_category>;
 
 /** Transactions in the header filters, newest first. */
 export const get_qb_transactions = async (
-  params: QbFilters & { search: string; kind: string },
+  params: QbFilters & {
+    search: string;
+    kind: string;
+    start: string;
+    end: string;
+  },
 ): Promise<QbTransactions> =>
   qb_get("qb_transactions", { ...params }, qb_transactions);
 

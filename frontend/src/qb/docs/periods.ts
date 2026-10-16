@@ -219,3 +219,18 @@ export function nec_threshold(period: Period, today: Date): number {
   const end = period.end || iso(today);
   return Number(end.slice(0, 4)) >= 2026 ? 2000 : 600;
 }
+
+/** Today (UTC date) and the period in a page URL (period, from, to). */
+export function period_from_url(url: URL): { today: Date; period: Period } {
+  const param = (name: string) => url.searchParams.get(name) ?? "";
+  const today = new Date(`${new Date().toISOString().slice(0, 10)}T00:00:00Z`);
+  return {
+    today,
+    period: resolve_period(
+      param("period") || "all",
+      param("from"),
+      param("to"),
+      today,
+    ),
+  };
+}

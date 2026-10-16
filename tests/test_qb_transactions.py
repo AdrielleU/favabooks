@@ -134,3 +134,21 @@ def test_categories(tmp_path: Path) -> None:
         next(c for c in march if c["account"] == "Income:Services")["count"]
         == 1
     )
+
+
+def test_transactions_period(tmp_path: Path) -> None:
+    client = make_client(tmp_path)
+    data = get(client, "qb_transactions", start="2026-03-01", end="2026-03-31")
+    assert {r["date"][:7] for r in data["rows"]} == {"2026-03"}
+    assert data["counts"]["all"] == 7
+    # Months cover every transaction, not just the period.
+    assert data["months"] == [
+        "2026-01-01",
+        "2026-02-01",
+        "2026-03-01",
+        "2026-04-01",
+    ]
+    response = client.get(
+        "/qb-example/api/qb_transactions", query_string={"end": "soon"}
+    )
+    assert response.status_code == 400

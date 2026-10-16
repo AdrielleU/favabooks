@@ -41,6 +41,8 @@ from fava.json_api import ValidationError
 from fava.qb_importers.bank_csv import parse_amount
 from fava.qb_importers.bank_csv import parse_date
 from fava.qb_transactions import documents_by_name
+from fava.qb_transactions import in_period
+from fava.qb_transactions import parse_period
 from fava.qb_transactions import QbReceipt  # noqa: TC001 (msgspec)
 from fava.qb_transactions import receipts_of
 from fava.util.date import local_today
@@ -418,30 +420,6 @@ class _Party:
     bank_paid: Decimal = ZERO
 
 
-def parse_period(
-    start: str, end: str
-) -> tuple[datetime.date | None, datetime.date | None]:
-    """Inclusive start and end dates ("" for open-ended)."""
-    try:
-        return (
-            datetime.date.fromisoformat(start) if start else None,
-            datetime.date.fromisoformat(end) if end else None,
-        )
-    except ValueError:
-        msg = "dates look like 2026-01-31"
-        raise ValidationError(msg) from None
-
-
-def _in_period(
-    date: datetime.date | None,
-    period: tuple[datetime.date | None, datetime.date | None],
-) -> bool:
-    start, end = period
-    return date is not None and (
-        (start is None or date >= start) and (end is None or date <= end)
-    )
-
-
 def _bank_paid(side: Side, txn: Transaction) -> Decimal:
     """Money a purchase took out of bank or cash accounts (not cards)."""
     assets = _root_name("name_assets")
@@ -474,7 +452,7 @@ def list_parties(side: Side, start: str = "", end: str = "") -> list[QbParty]:
     for doc in collect(side).values():
         p = party(doc.party)
         p.email = p.email or doc.email
-        if _in_period(doc.date, period):
+        if in_period(doc.date, period):
             p.docs += 1
             p.total += doc.billed
         balance = doc.billed - doc.paid
@@ -488,9 +466,9 @@ def list_parties(side: Side, start: str = "", end: str = "") -> list[QbParty]:
     for txn in g.ledger.all_entries_by_type.Transaction:
         if side.excluded(txn):
             continue
-        in_period = _in_period(txn.date, period)
+        inside = in_period(txn.date, period)
         bank = _bank_paid(side, txn)
-        if bank and in_period:
+        if bank and inside:
             party(_party(side, txn)).bank_paid += bank
         if _text(txn.meta.get("invoice")):
             continue
@@ -499,7 +477,7 @@ def list_parties(side: Side, start: str = "", end: str = "") -> list[QbParty]:
             continue
         p = party(_party(side, txn))
         p.email = p.email or _text(txn.meta.get(f"{side.party}_email"))
-        if in_period:
+        if inside:
             p.total += (
                 negative - positive if side.sign > 0 else positive - negative
             )
