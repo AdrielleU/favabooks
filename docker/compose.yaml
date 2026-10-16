@@ -1,12 +1,9 @@
 services:
   favabooks:
-    build:
-      context: ..
-      dockerfile: docker/Dockerfile
-      args:
-        VERSION: ${VERSION:-0.0.0+dev}
-    # VERSION=0.1.0 docker compose build  ->  favabooks:0.1.0
-    image: favabooks:${VERSION:-latest}
+    # Published image. "0.1" follows 0.1.x patches: docker compose pull && docker compose up -d
+    # Pin an exact release (0.1.0) or use "latest". To build from source instead:
+    #   docker compose -f compose.yaml -f compose.build.yaml up -d --build
+    image: ghcr.io/adrielleu/favabooks:${FAVABOOKS_TAG:-0.1}
     restart: unless-stopped
     environment:
       # space-separated list: one main.beancount per entity

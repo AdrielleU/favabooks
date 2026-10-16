@@ -1,0 +1,10 @@
+# Build Favabooks from this checkout instead of pulling the published image:
+#   VERSION=0.1.0 docker compose -f compose.yaml -f compose.build.yaml up -d --build
+services:
+  favabooks:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+      args:
+        VERSION: ${VERSION:-0.0.0+dev}
+    image: favabooks:${VERSION:-dev}
