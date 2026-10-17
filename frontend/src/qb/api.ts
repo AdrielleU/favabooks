@@ -836,3 +836,43 @@ export const get_qb_balance_trend = async (
     { as_of, months: months.toString() },
     array(qb_balance_point),
   );
+
+// --- Chart of accounts --------------------------------------------------------
+
+const qb_chart = object({
+  currency: string,
+  accounts: array(
+    object({
+      account: string,
+      type: string,
+      detail_type: string,
+      balance: decimal,
+      transactions: number,
+      open_date: optional(date),
+      close_date: optional(date),
+      last_date: optional(date),
+    }),
+  ),
+  roots: record(string),
+  year_start: date,
+});
+
+export type QbChart = ValidationT<typeof qb_chart>;
+export type QbChartAccount = QbChart["accounts"][number];
+
+/** Every account with its type, balance and activity. */
+export const get_qb_chart = async (): Promise<QbChart> =>
+  qb_get("qb_chart", {}, qb_chart);
+
+/** Add an account. */
+export const put_qb_account_open = async (body: {
+  account: string;
+  date: string;
+  currency: string;
+}): Promise<string> => qb_put("qb_account_open", body, string);
+
+/** Close an account. */
+export const put_qb_account_close = async (body: {
+  account: string;
+  date: string;
+}): Promise<string> => qb_put("qb_account_close", body, string);

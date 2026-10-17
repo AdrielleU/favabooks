@@ -92,6 +92,7 @@ CLIENT_SIDE_REPORTS = [
     "qb_reconcile",
     "qb_transactions",
     "qb_reports",
+    "qb_chart",
     "qb_profit_loss",
     "qb_balance_sheet",
     "qb_trial_balance",

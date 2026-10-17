@@ -11,7 +11,6 @@
     keyboardShortcut,
     show_keyboard_shortcuts,
   } from "../../keyboard-shortcuts.ts";
-  import AccountSelector from "../../sidebar/AccountSelector.svelte";
   import { errors, extensions, ledger_data } from "../../stores/index.ts";
   import { pathname } from "../../stores/url.ts";
   import Icon from "../Icon.svelte";
@@ -41,10 +40,11 @@
       "qb_general_ledger",
       "qb_exports",
     ],
-    accounting: ["account", "documents", "editor"],
+    accounting: ["qb_chart", "account", "documents"],
     advanced: [
       "query",
       "journal",
+      "editor",
       "income_statement",
       "balance_sheet",
       "trial_balance",
@@ -241,9 +241,8 @@
 />
 {#if is_open("accounting")}
   <ul class="navigation">
-    <AccountSelector />
-    <QbLink report="documents" name={_("Documents")} key="g d" />
-    <QbLink report="editor" name={_("Editor")} key="g e" />
+    <QbLink report="qb_chart" name="Chart of accounts" />
+    <QbLink report="documents" name="Receipts & documents" key="g d" />
   </ul>
 {/if}
 
@@ -271,6 +270,7 @@
       {/if}
     </QbLink>
     <QbLink report="journal" name="Journal" key="g j" />
+    <QbLink report="editor" name="Edit ledger files" key="g e" />
     <QbLink report="income_statement" name="Fava income statement" />
     <QbLink report="balance_sheet" name="Fava balance sheet" />
     <QbLink report="trial_balance" name="Fava trial balance" />
