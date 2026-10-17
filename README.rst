@@ -101,21 +101,26 @@ With a login
 
 ``docker-compose-login.yml`` puts Caddy in front of Favabooks: everyone
 signs in with a username and password before seeing the books, and only
-Caddy's port is open. Make a password hash, put the login in ``.env`` next
-to the compose file, and start it:
+Caddy's port is open.
 
 .. code-block:: bash
 
-    docker run --rm -it docker.io/library/caddy:2.11.7-alpine caddy hash-password   # asks twice
-    cat > .env <<'END'
-    FAVABOOKS_LOGIN_USER=me
-    FAVABOOKS_LOGIN_HASH='$2a$14$...the hash...'
-    END
+    mkdir books
     docker compose -f docker-compose-login.yml up -d
+    docker compose -f docker-compose-login.yml logs login   # the password
 
-Without the login in ``.env`` it refuses to start. It's one shared login
-over plain HTTP: fine on a home network, but use a VPN (Tailscale,
-WireGuard) or HTTPS to reach it from outside.
+On first start it makes the login: user ``admin`` and a random password,
+printed once in the logs. Only the password's hash is kept, in ``.env``
+next to the compose file (``FAVABOOKS_LOGIN_USER``,
+``FAVABOOKS_LOGIN_HASH``). For a new password, delete those two lines and
+run ``up -d`` again; or put your own hash there, in single quotes:
+
+.. code-block:: bash
+
+    docker run --rm -it docker.io/library/caddy:2.11.7-alpine caddy hash-password
+
+It's one shared login over plain HTTP: fine on a home network, but use a
+VPN (Tailscale, WireGuard) or HTTPS to reach it from outside.
 
 Several companies, or personal money
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
