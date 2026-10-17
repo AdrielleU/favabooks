@@ -13,19 +13,55 @@
   import { has_changes, page_title } from "../../sidebar/page-title.ts";
   import { errors, ledger_data } from "../../stores/index.ts";
   import { ledger_title } from "../../stores/options.ts";
+  import { pathname } from "../../stores/url.ts";
   import Icon from "../Icon.svelte";
 
   /** Stock page titles renamed to match the nav. */
   const TITLES: Record<string, string> = {
-    "Income Statement": "Profit and loss",
-    Journal: "All transactions",
+    "Income Statement": "Fava income statement",
+    "Balance Sheet": "Fava balance sheet",
+    "Trial Balance": "Fava trial balance",
+    Editor: "Edit ledger files",
+    Documents: "Receipts & documents",
     Import: "Import files",
     "Help - Index": "Help",
+  };
+
+  /** What Fava's own pages are for (they don't say), by report. */
+  const NOTES: Record<string, string> = {
+    journal:
+      "Every entry in your files. Buttons show or hide kinds: * cleared, ! needs review, D documents, B balance checks.",
+    query:
+      "Ask your books anything in Beancount's query language (see Help), e.g. SELECT account, sum(position) GROUP BY account.",
+    editor:
+      "Edit the ledger's text files directly (the File menu switches files). Other pages write here for you.",
+    income_statement:
+      "Fava's original income statement, in every currency. Reports → Profit and loss is the QuickBooks-style one.",
+    balance_sheet:
+      "Fava's original balance sheet, in every currency. Reports → Balance sheet is the QuickBooks-style one.",
+    trial_balance:
+      "Fava's original trial balance, in every currency. Reports → Trial balance has debit and credit columns.",
+    holdings:
+      "Balances by account at cost and market value, for investments and foreign currency. Cards show as negative.",
+    commodities:
+      "Prices of currencies and investments. Empty until the ledger has price lines like: 2025-01-31 price EUR 1.08 USD",
+    events:
+      'Things you track over time, like an address: 2025-03-01 event "location" "Phoenix, AZ" (add in Edit ledger files).',
+    statistics:
+      "Entry counts, and when each account last had activity: one that stopped updating may have missed an import.",
+    documents:
+      "Receipts and statements in the documents folder, by account. Click a file to preview it; drop files on an account.",
+    options:
+      "Your ledger's Beancount and Fava settings. Change them in Advanced → Edit ledger files.",
+    errors:
+      "Problems Beancount found in your ledger files, with the file and line to fix.",
   };
 
   let other_ledgers = $derived($ledger_data.other_ledgers);
   let { title: raw_title, type } = $derived($page_title);
   let title = $derived(TITLES[raw_title] ?? raw_title);
+  let report = $derived($pathname.split("/").filter(Boolean)[1] ?? "");
+  let note = $derived(NOTES[report] ?? "");
 </script>
 
 <header>
@@ -50,6 +86,9 @@
         {title}
       {/if}
     </h1>
+    {#if note}
+      <p class="note" title={note}>{note}</p>
+    {/if}
   </div>
   <button
     type="button"
@@ -140,6 +179,16 @@
 
   .ledgers a:hover {
     background: var(--background-darker);
+  }
+
+  .note {
+    max-width: 52rem;
+    margin: 0.15rem 0 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 0.82rem;
+    color: var(--qb-muted);
+    white-space: nowrap;
   }
 
   h1 {
