@@ -4,10 +4,14 @@
 -->
 <script lang="ts">
   import { url_for } from "../../helpers.ts";
+  import { notify_err } from "../../notifications.ts";
   import { router } from "../../router.ts";
   import { HAVE_EXCEL } from "../../stores/index.ts";
-  import type { QbCheck, QbExports } from "../api.ts";
+  import type { QbCheck, QbExports, QbQboExport } from "../api.ts";
+  import { get_qb_qbo_export } from "../api.ts";
   import Icon from "../Icon.svelte";
+  import { download_csv } from "../reports/download.ts";
+  import { qbo_files } from "./qbo.ts";
 
   let { data, checks }: { data: QbExports; checks: QbCheck[] } = $props();
 
@@ -35,6 +39,32 @@
     const url = new URL(window.location.href);
     url.searchParams.set("year", value);
     router.navigate(url);
+  }
+
+  let qbo_mode = $state<"transactions" | "balances">("transactions");
+  let qbo = $state<QbQboExport | null>(null);
+  let qbo_busy = $state(false);
+  let files = $derived(qbo ? qbo_files(qbo) : []);
+  let counts = $derived(
+    qbo
+      ? [
+          `${qbo.accounts.length.toString()} accounts`,
+          `${qbo.customers.length.toString()} customers`,
+          `${qbo.vendors.length.toString()} vendors`,
+          `${qbo.journals.toString()} journal entries`,
+        ]
+      : [],
+  );
+
+  async function prepare() {
+    qbo_busy = true;
+    try {
+      qbo = await get_qb_qbo_export(year, qbo_mode);
+    } catch (error) {
+      notify_err(error);
+    } finally {
+      qbo_busy = false;
+    }
   }
 
   const check_url = (c: QbCheck) => $url_for(`${c.report}/`, c.params);
@@ -175,6 +205,89 @@
   </p>
 </section>
 
+<section class="qb-card">
+  <h2><span class="step-no">3</span> For QuickBooks Online</h2>
+  <p class="muted">
+    If your accountant works in QuickBooks Online, these files load your books
+    into it with QuickBooks' own importer.
+  </p>
+  <div class="qbo-mode">
+    <label>
+      <input
+        type="radio"
+        name="qbo-mode"
+        value="transactions"
+        bind:group={qbo_mode}
+        onchange={() => (qbo = null)}
+      />
+      <span
+        ><strong>Every transaction</strong> in {year}, one journal entry each
+        (plus opening balances from earlier years)</span
+      >
+    </label>
+    <label>
+      <input
+        type="radio"
+        name="qbo-mode"
+        value="balances"
+        bind:group={qbo_mode}
+        onchange={() => (qbo = null)}
+      />
+      <span
+        ><strong>Year-end balances only</strong>: one journal entry with every
+        balance on {year}-12-31, to start a QuickBooks file from there</span
+      >
+    </label>
+  </div>
+  {#if !qbo}
+    <button
+      type="button"
+      class="qb-primary"
+      disabled={qbo_busy || data.years.length === 0}
+      onclick={prepare}
+    >
+      Prepare QuickBooks files
+    </button>
+  {:else}
+    <ol class="qbo-steps">
+      {#each files as [name, csv], i (name)}
+        <li>
+          <div class="text">
+            <strong>{name}</strong>
+            <span class="muted"
+              >{counts[i]} · In QuickBooks: Settings → Import data → {[
+                "Chart of accounts",
+                "Customers",
+                "Vendors",
+                "Journal entries",
+              ][i]}</span
+            >
+          </div>
+          <button
+            type="button"
+            class="qb-secondary small"
+            onclick={() => {
+              download_csv(csv, name);
+            }}
+          >
+            <Icon name="download" size={14} /> Download
+          </button>
+        </li>
+      {/each}
+    </ol>
+    {#if qbo.skipped.length}
+      <p class="warn">
+        Left out ({qbo.skipped.length}): {qbo.skipped.join("; ")}
+      </p>
+    {/if}
+    <p class="muted small-note">
+      Import them in this order. Account names are flattened ("Legal - Startup")
+      so the files agree with each other; account types are a best guess your
+      accountant can change. Amounts are in {qbo.currency}.
+    </p>
+  {/if}
+</section>
+
 <style>
   .head {
     display: flex;
@@ -298,6 +411,43 @@
   a.button.qb-secondary {
     color: var(--text-color);
     background: var(--qb-surface);
+  }
+
+  .qbo-mode {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin: 0.6rem 0 1rem;
+  }
+
+  .qbo-mode label {
+    display: flex;
+    gap: 0.5rem;
+    align-items: baseline;
+  }
+
+  .qbo-steps {
+    padding-left: 1.2rem;
+    margin: 0;
+  }
+
+  .qbo-steps li {
+    display: list-item;
+  }
+
+  .qbo-steps li > div,
+  .qbo-steps li > button {
+    display: inline-flex;
+    vertical-align: middle;
+  }
+
+  .qbo-steps .text {
+    flex-direction: column;
+    width: calc(100% - 9rem);
+  }
+
+  .warn {
+    color: var(--warning);
   }
 
   .small-note {

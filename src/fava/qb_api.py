@@ -19,6 +19,7 @@ from msgspec import Struct
 # Registers the Bank connections, Reconcile, Reports, Sales and All
 # transactions endpoints.
 from fava import qb_connections  # noqa: F401
+from fava import qb_qbo  # noqa: F401
 from fava import qb_reconcile  # noqa: F401
 from fava import qb_reports  # noqa: F401
 from fava import qb_sales  # noqa: F401

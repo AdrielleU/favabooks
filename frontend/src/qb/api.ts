@@ -776,3 +776,43 @@ export const get_qb_general_ledger = async (params: {
 /** Year-end checks before sending the books to an accountant. */
 export const get_qb_year_checks = async (year: number): Promise<QbCheck[]> =>
   qb_get("qb_year_checks", { year: year.toString() }, array(qb_check));
+
+// --- QuickBooks Online export -------------------------------------------------
+
+const qb_qbo_export = object({
+  year: number,
+  mode: string,
+  currency: string,
+  accounts: array(
+    object({
+      name: string,
+      type: string,
+      detail_type: string,
+      account: string,
+    }),
+  ),
+  customers: array(object({ name: string, email: string })),
+  vendors: array(object({ name: string, email: string })),
+  lines: array(
+    object({
+      journal_no: string,
+      date,
+      account: string,
+      debit: decimal,
+      credit: decimal,
+      description: string,
+      name: string,
+    }),
+  ),
+  journals: number,
+  skipped: array(string),
+});
+
+export type QbQboExport = ValidationT<typeof qb_qbo_export>;
+
+/** QuickBooks Online import files for a year. */
+export const get_qb_qbo_export = async (
+  year: number,
+  mode: "transactions" | "balances",
+): Promise<QbQboExport> =>
+  qb_get("qb_qbo_export", { year: year.toString(), mode }, qb_qbo_export);
