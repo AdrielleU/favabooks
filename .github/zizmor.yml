@@ -1,0 +1,6 @@
+rules:
+  self-repository:
+    ignore:
+      # A reusable workflow called with ./ already comes from the same
+      # commit; keep it until GitHub's newer $/ form is proven for tag pushes.
+      - release.yml:17
