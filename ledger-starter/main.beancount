@@ -1,0 +1,17 @@
+; Favabooks starter ledger. Rename the company below (or set FAVABOOKS_COMPANY
+; when the Docker container creates it), then add your bank and card
+; accounts in Banking -> Bank & card accounts.
+option "title" "My Company LLC"
+option "operating_currency" "USD"
+option "documents" "documents"
+
+; Checks that receipts named on transactions (document: "...") exist.
+plugin "fava.qb_receipts"
+
+2020-01-01 custom "fava-option" "default-page" "qb_dashboard/"
+2020-01-01 custom "fava-option" "auto-reload" "true"
+2020-01-01 custom "fava-option" "invert-income-liabilities-equity" "true"
+2020-01-01 custom "fava-option" "import-dirs" "inbox"
+
+include "accounts.beancount"
+include "transactions.beancount"

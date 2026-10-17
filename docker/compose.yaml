@@ -1,13 +1,15 @@
 services:
   favabooks:
-    # Published image. "0.1" follows 0.1.x patches: docker compose pull && docker compose up -d
-    # Pin an exact release (0.1.0) or use "latest". To build from source instead:
+    # Published image. "0.3" follows 0.3.x patches: docker compose pull && docker compose up -d
+    # Pin an exact release (0.3.0) or use "latest". To build from source instead:
     #   docker compose -f compose.yaml -f compose.build.yaml up -d --build
-    image: ghcr.io/adrielleu/favabooks:${FAVABOOKS_TAG:-0.1}
+    image: ghcr.io/adrielleu/favabooks:${FAVABOOKS_TAG:-0.3}
     restart: unless-stopped
     environment:
       # space-separated list: one main.beancount per entity
       LEDGERS: "/books/my-company/main.beancount"
+      # Create the books on first run: blank (default), demo or none
+      FAVABOOKS_STARTER: "none"
       GIT_AUTHOR_NAME: "favabooks"
       GIT_AUTHOR_EMAIL: "favabooks@localhost"
       GIT_COMMITTER_NAME: "favabooks"

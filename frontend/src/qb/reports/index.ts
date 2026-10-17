@@ -70,11 +70,13 @@ export const qb_profit_loss = new Route(
         2
         ? new Date(Date.UTC(last.getUTCFullYear(), last.getUTCMonth() - 11, 1))
         : first;
+    // The trend stops at today: future months would only show zeros.
+    const trend_end = last > today && trend_start < today ? today : last;
     const [trend, compared] = await Promise.all([
       get_qb_profit_loss({
         start: iso(trend_start),
-        end: iso(last),
-        by: trend_by(trend_start, last),
+        end: iso(trend_end),
+        by: trend_by(trend_start, trend_end),
         compare: "",
       }),
       get_qb_profit_loss({ ...range, by: "total", compare: "1" }),

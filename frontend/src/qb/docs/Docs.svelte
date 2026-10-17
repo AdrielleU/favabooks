@@ -255,7 +255,7 @@
 {#if has_unpaid}
   <div class="aging" aria-label="Unpaid by days past due">
     {#each AGING_BUCKETS as label, i (label)}
-      <div class="bucket" class:late={i > 0 && (buckets[i] ?? 0) > 0}>
+      <div class="bucket" class:is-late={i > 0 && (buckets[i] ?? 0) > 0}>
         <span class="bucket-label">{label}</span>
         <strong class="bucket-value"
           >{money((buckets[i] ?? 0) / 100, currency)}</strong
@@ -776,7 +776,7 @@
     font-variant-numeric: tabular-nums;
   }
 
-  .late .bucket-value {
+  .is-late .bucket-value {
     color: var(--error);
   }
 

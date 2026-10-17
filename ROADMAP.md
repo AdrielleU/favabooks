@@ -26,10 +26,13 @@ and bug reports are welcome as GitHub issues.
   QuickBooks' file upload and receipts)
 - [x] Year menus and the dashboard follow the years the books have data for
 - [x] Demo company ledger, CI, Docker image on ghcr.io, tagged releases
+- [x] All transactions, Customers/Invoices, Vendors/Bills, report center with
+  charts, chart of accounts with nicknames, QuickBooks Online export
 
 ## Next: finish Phase 1
 
 - [x] Release v0.2.0 (importers and the new UI)
+- [x] Release v0.3.0 (sales, expenses, reports, month-end)
 - [ ] Verify the unverified bank layouts (Bluevine, Relay, Novo, PNC) against
   real downloads; a header row is enough
 - [ ] Category suggestions from past choices (smart_importer) so imports arrive
@@ -45,26 +48,29 @@ and bug reports are welcome as GitHub issues.
 
 ## Phase 2: month-end
 
-- [ ] Reconcile: tick transactions against a statement, see the difference, save
+- [x] Reconcile: tick transactions against a statement, see the difference, save
   the statement balance
-- [ ] Close books: lock a period so nothing on or before a date can change
+- [x] Close books: lock a period so nothing on or before a date can change
 - [ ] Review queue tabs: For review, Accepted, Excluded
 
 ## Phase 3: customers and vendors
 
-- [ ] Customers and vendors lists built from payment metadata
-- [ ] A/R and A/P aging (0–30, 31–60, 61–90, 90+ days)
-- [ ] Invoices and bills (only where Stripe doesn't already cover invoicing)
-- [ ] 1099 vendor report (payees at or above the IRS threshold)
+- [x] Customers and vendors lists built from payment metadata
+- [x] A/R and A/P aging (0–30, 31–60, 61–90, 90+ days)
+- [x] Invoices and bills: import from CSV or record with the PDF, match payments
+  (bookkeeping only; invoices are still sent elsewhere)
+- [x] 1099 vendor review (bank and check payments at or above the IRS threshold
+  for the year)
 - [ ] Read-only vs editor access, enforced at the reverse proxy
 
 ## UI
 
-- [ ] QuickBooks-style report pages: single-column P&L, debit/credit trial
-  balance, print and export toolbar
+- [x] QuickBooks-style report pages: P&L, balance sheet, debit/credit trial
+  balance, general ledger, with charts, print and export toolbar
 - [ ] Global search for transactions, payees and accounts
 - [ ] Collapsible icon-rail nav
-- [ ] Empty states for Documents, Commodities, Events and Errors
+- [x] Notes and empty states for Fava's pages; new Currencies & prices, Business
+  details and Statistics pages
 - [ ] Favabooks help pages
 - [ ] Compact "Filters" button on phones
 

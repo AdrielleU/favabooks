@@ -24,7 +24,12 @@ COPY --from=build /wheels /wheels
 RUN pip install --no-cache-dir --root-user-action ignore \
       "$(ls /wheels/fava-*.whl)[excel]" beangulp smart_importer \
  && rm -rf /wheels
-RUN useradd --create-home --uid 1000 fava
+RUN useradd --create-home --uid 1000 fava \
+ && mkdir /books && chown fava:fava /books
+# Starter books, copied on first run (see entrypoint.sh)
+COPY ledger-starter /opt/favabooks/ledger-starter
+COPY ledger-template /opt/favabooks/ledger-template
+COPY docker/entrypoint.sh /usr/local/bin/favabooks-entrypoint
 USER fava
 RUN git config --global --add safe.directory '*'
 WORKDIR /books
@@ -33,4 +38,4 @@ ENV FAVA_HOST=0.0.0.0 \
 EXPOSE 5000
 # fava runs as PID 1 and has no SIGTERM handler; SIGINT stops it cleanly.
 STOPSIGNAL SIGINT
-CMD ["sh", "-c", "exec fava $LEDGERS"]
+CMD ["favabooks-entrypoint"]

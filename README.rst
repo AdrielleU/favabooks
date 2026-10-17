@@ -3,9 +3,9 @@ Favabooks
 
 Favabooks is a bookkeeping UI for small businesses that keep their books in
 plain-text `Beancount <https://github.com/beancount/beancount>`__ files. It
-adds QuickBooks-like screens (a dashboard, a bank "for review" queue, an
-account register, bulk reclassify) alongside every page of the stock Fava UI,
-and ships as one Docker image.
+adds QuickBooks-like screens for banking, sales, expenses, reports and
+month-end alongside every page of the stock Fava UI, and ships as one Docker
+image.
 
 **Favabooks is a fork of** `Fava <https://github.com/beancount/fava>`__ **by
 Dominik Aumayr and the Fava contributors.** Almost all of this code is
@@ -13,41 +13,96 @@ theirs, and the full Fava history is kept in this repository. Fava is MIT
 licensed; see ``LICENSE`` and ``NOTICE``. Favabooks is not affiliated with
 the Fava or Beancount projects, or with Intuit.
 
+.. image:: screenshots/dashboard.png
+   :alt: Favabooks dashboard
+
 What Favabooks adds
 -------------------
 
-- QuickBooks-style shell: top bar, grouped icon nav with a "+ New" menu, and
-  a light/dark theme that also restyles Fava's own pages
-- Dashboard: bank balances, profit and loss this month vs last, top expenses,
-  review and error counts
-- For review: accept or recategorise imported transactions, one by one or in bulk
-- Register: per-account register with running balance and inline category edits
-- Bulk reclassify: move postings between accounts across many transactions
-- Export for CPA: trial balance, P&L, balance sheet and general ledger as
-  CSV or XLSX for a chosen year
-- Bank and card CSV importers for major US banks, Mercury and others, plus a
-  Stripe payout importer (``fava.qb_importers``), with a Bank formats page
-- Expense spreadsheet import with column mapping, linked receipts filed under
-  each expense account
-- Placeholders for screens in progress (reconcile, customers, vendors, …)
-
-See `ROADMAP.md <ROADMAP.md>`__ for what's next.
+- **Shell:** QuickBooks-style top bar and grouped icon nav with a "+ New"
+  menu, a light/dark theme that also restyles Fava's own pages, and a note on
+  each of Fava's pages saying what it's for
+- **Dashboard:** cash, income, expenses and net profit vs last month, bank
+  balances, top expenses, review and error counts
+- **Banking:** a "for review" queue (accept or recategorise imports one by
+  one or in bulk), Bank & card accounts (connect each account once in a
+  wizard), bank/card/Stripe CSV importers for major US banks, imported files
+  filed away automatically, and Reconcile against a statement
+- **Transactions:** All transactions (types, search, dates, receipts, CSV
+  export), a register per account, and bulk reclassify
+- **Sales and expenses:** Customers, Invoices, Vendors and Bills: import them
+  from a CSV or record them (with the PDF), match payments, aging, date
+  filters, and 1099-NEC review for vendors
+- **Reports:** a report center, profit and loss (by month, quarter or year,
+  compared with the previous period), balance sheet, trial balance and general
+  ledger, with KPI cards, charts, drill-down, CSV export and print
+- **Export for CPA:** a year-end checklist, the reports as CSV or Excel, and
+  QuickBooks Online import files (chart of accounts, customers, vendors,
+  journal entries)
+- **Accounting:** a chart of accounts with QuickBooks account types, account
+  nicknames, adding and closing accounts, and Close books (locks a period:
+  balance checks flag any later change)
+- **Advanced:** currencies and prices, business details with dated reminders,
+  and book statistics
+- **Receipts:** expense spreadsheet import with receipts, and the
+  ``fava.qb_receipts`` plugin that checks every receipt a transaction names
 - Docker image and compose file (``docker/``)
+
+.. list-table::
+   :widths: 50 50
+
+   * - .. image:: screenshots/transactions.png
+          :alt: All transactions
+     - .. image:: screenshots/invoices.png
+          :alt: Invoices
+   * - .. image:: screenshots/profit-and-loss.png
+          :alt: Profit and loss with charts
+     - .. image:: screenshots/balance-sheet.png
+          :alt: Balance sheet
+   * - .. image:: screenshots/for-review.png
+          :alt: For review queue
+     - .. image:: screenshots/export-for-cpa.png
+          :alt: Export for CPA
+   * - .. image:: screenshots/chart-of-accounts.png
+          :alt: Chart of accounts
+     -
+
+Screenshots show the fictional demo company in ``ledger-template/``. See
+`ROADMAP.md <ROADMAP.md>`__ for what's next.
 
 New code lives in ``frontend/src/qb/`` and ``src/fava/qb_api.py``. Changes to
 Fava's own files are kept small and marked ``qb-fork``.
 
-Running it
-----------
+Self-hosting with Docker
+------------------------
+
+One image has everything: Beancount, Fava and the Favabooks UI. Download
+`docker-compose.yml <docker-compose.yml>`__ into an empty folder, then:
+
+.. code-block:: bash
+
+    mkdir books                     # your books live here, as plain files
+    FAVABOOKS_COMPANY="Acme LLC" docker compose up -d
+    # open http://localhost:5000
+
+On first run it creates new books in ``./books`` with a starter chart of
+accounts. Set ``FAVABOOKS_STARTER=demo`` to start with the fictional demo
+company instead. Update with ``docker compose pull && docker compose up -d``.
+The container runs as user 1000; if ``books`` belongs to another user, see
+the comment in the compose file.
+
+Fava has no login, so the compose file only listens on this computer. Before
+opening it to a network, put it behind a reverse proxy with a login;
+``docker/compose.yaml`` is a production setup (git auto-commit, proxy port).
+
+Running from source
+-------------------
 
 .. code-block:: bash
 
     make dev                       # needs uv and Node 22.22.2+ / 24.15+
     cp -r ledger-template /tmp/demo-books   # fictional demo company
     uv run fava /tmp/demo-books/main.beancount
-
-or with Docker: ``cd docker && docker compose up -d --build``. Fava has no
-login, so put it behind an authenticating reverse proxy before exposing it.
 
 ----
 

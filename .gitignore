@@ -26,3 +26,5 @@
 .env
 __pycache__
 npm-debug.log
+# Books created by docker-compose.yml (your private ledger)
+/books/

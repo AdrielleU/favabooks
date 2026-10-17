@@ -6,11 +6,13 @@
   Equity:Opening-Balances
 
 2026-01-01 * "Mesa Properties" "Office rent"
+  invoice: "MP-2026-01"
   Assets:Bank:Checking                -1800.00 USD
   Expenses:Rent
 
 2026-01-03 * "Acme Dental" "Invoice 01-03"
   customer: "Acme Dental"
+  invoice: "INV-260103"
   Assets:Stripe                        1164.90 USD
   Expenses:Fees:Stripe                   35.10 USD
   Income:Services                     -1200.00 USD
@@ -29,6 +31,7 @@
 
 2026-01-09 * "Northwind Cafe" "Invoice 01-09"
   customer: "Northwind Cafe"
+  invoice: "INV-260109"
   Assets:Stripe                        2330.10 USD
   Expenses:Fees:Stripe                   69.90 USD
   Income:Services                     -2400.00 USD
@@ -47,6 +50,7 @@
 
 2026-01-17 * "Copper Leaf Yoga" "Invoice 01-17"
   customer: "Copper Leaf Yoga"
+  invoice: "INV-260117"
   Assets:Stripe                        2330.10 USD
   Expenses:Fees:Stripe                   69.90 USD
   Income:Services                     -2400.00 USD
@@ -69,11 +73,13 @@
   Expenses:Fees:Bank
 
 2026-02-01 * "Mesa Properties" "Office rent"
+  invoice: "MP-2026-02"
   Assets:Bank:Checking                -1800.00 USD
   Expenses:Rent
 
 2026-02-03 * "Acme Dental" "Invoice 02-03"
   customer: "Acme Dental"
+  invoice: "INV-260203"
   Assets:Stripe                        1456.20 USD
   Expenses:Fees:Stripe                   43.80 USD
   Income:Services                     -1500.00 USD
@@ -92,6 +98,7 @@
 
 2026-02-09 * "Blue Mesa Realty" "Invoice 02-09"
   customer: "Blue Mesa Realty"
+  invoice: "INV-260209"
   Assets:Stripe                        1164.90 USD
   Expenses:Fees:Stripe                   35.10 USD
   Income:Services                     -1200.00 USD
@@ -114,6 +121,7 @@
 
 2026-02-17 * "Northwind Cafe" "Invoice 02-17"
   customer: "Northwind Cafe"
+  invoice: "INV-260217"
   Assets:Stripe                        2330.10 USD
   Expenses:Fees:Stripe                   69.90 USD
   Income:Services                     -2400.00 USD
@@ -136,11 +144,13 @@
   Expenses:Fees:Bank
 
 2026-03-01 * "Mesa Properties" "Office rent"
+  invoice: "MP-2026-03"
   Assets:Bank:Checking                -1800.00 USD
   Expenses:Rent
 
 2026-03-03 * "Blue Mesa Realty" "Invoice 03-03"
   customer: "Blue Mesa Realty"
+  invoice: "INV-260303"
   Assets:Stripe                        1164.90 USD
   Expenses:Fees:Stripe                   35.10 USD
   Income:Services                     -1200.00 USD
@@ -159,6 +169,7 @@
 
 2026-03-09 * "Northwind Cafe" "Invoice 03-09"
   customer: "Northwind Cafe"
+  invoice: "INV-260309"
   Assets:Stripe                        1456.20 USD
   Expenses:Fees:Stripe                   43.80 USD
   Income:Services                     -1500.00 USD
@@ -181,6 +192,7 @@
 
 2026-03-17 * "Copper Leaf Yoga" "Invoice 03-17"
   customer: "Copper Leaf Yoga"
+  invoice: "INV-260317"
   Assets:Stripe                         873.60 USD
   Expenses:Fees:Stripe                   26.40 USD
   Income:Services                      -900.00 USD
@@ -211,11 +223,13 @@
   Expenses:Fees:Bank
 
 2026-04-01 * "Mesa Properties" "Office rent"
+  invoice: "MP-2026-04"
   Assets:Bank:Checking                -1800.00 USD
   Expenses:Rent
 
 2026-04-03 * "Copper Leaf Yoga" "Invoice 04-03"
   customer: "Copper Leaf Yoga"
+  invoice: "INV-260403"
   Assets:Stripe                        2330.10 USD
   Expenses:Fees:Stripe                   69.90 USD
   Income:Services                     -2400.00 USD
@@ -234,6 +248,7 @@
 
 2026-04-09 * "Northwind Cafe" "Invoice 04-09"
   customer: "Northwind Cafe"
+  invoice: "INV-260409"
   Assets:Stripe                        2330.10 USD
   Expenses:Fees:Stripe                   69.90 USD
   Income:Services                     -2400.00 USD
@@ -252,6 +267,7 @@
 
 2026-04-17 * "Blue Mesa Realty" "Invoice 04-17"
   customer: "Blue Mesa Realty"
+  invoice: "INV-260417"
   Assets:Stripe                         873.60 USD
   Expenses:Fees:Stripe                   26.40 USD
   Income:Services                      -900.00 USD
@@ -278,11 +294,13 @@
   Expenses:Fees:Bank
 
 2026-05-01 * "Mesa Properties" "Office rent"
+  invoice: "MP-2026-05"
   Assets:Bank:Checking                -1800.00 USD
   Expenses:Rent
 
 2026-05-03 * "Copper Leaf Yoga" "Invoice 05-03"
   customer: "Copper Leaf Yoga"
+  invoice: "INV-260503"
   Assets:Stripe                        2330.10 USD
   Expenses:Fees:Stripe                   69.90 USD
   Income:Services                     -2400.00 USD
@@ -301,6 +319,7 @@
 
 2026-05-09 * "Northwind Cafe" "Invoice 05-09"
   customer: "Northwind Cafe"
+  invoice: "INV-260509"
   Assets:Stripe                        1164.90 USD
   Expenses:Fees:Stripe                   35.10 USD
   Income:Services                     -1200.00 USD
@@ -319,6 +338,7 @@
 
 2026-05-17 * "Acme Dental" "Invoice 05-17"
   customer: "Acme Dental"
+  invoice: "INV-260517"
   Assets:Stripe                         873.60 USD
   Expenses:Fees:Stripe                   26.40 USD
   Income:Services                      -900.00 USD
@@ -345,6 +365,7 @@
   Expenses:Fees:Bank
 
 2026-06-01 * "Mesa Properties" "Office rent"
+  invoice: "MP-2026-06"
   Assets:Bank:Checking                -1800.00 USD
   Expenses:Rent
 
@@ -354,6 +375,7 @@
 
 2026-06-03 * "Copper Leaf Yoga" "Invoice 06-03"
   customer: "Copper Leaf Yoga"
+  invoice: "INV-260603"
   Assets:Stripe                        1164.90 USD
   Expenses:Fees:Stripe                   35.10 USD
   Income:Services                     -1200.00 USD
@@ -380,6 +402,7 @@
 
 2026-06-09 * "Northwind Cafe" "Invoice 06-09"
   customer: "Northwind Cafe"
+  invoice: "INV-260609"
   Assets:Stripe                        1456.20 USD
   Expenses:Fees:Stripe                   43.80 USD
   Income:Services                     -1500.00 USD
@@ -394,6 +417,7 @@
 
 2026-06-17 * "Blue Mesa Realty" "Invoice 06-17"
   customer: "Blue Mesa Realty"
+  invoice: "INV-260617"
   Assets:Stripe                        1456.20 USD
   Expenses:Fees:Stripe                   43.80 USD
   Income:Services                     -1500.00 USD
@@ -420,11 +444,13 @@
   Expenses:Fees:Bank
 
 2026-07-01 * "Mesa Properties" "Office rent"
+  invoice: "MP-2026-07"
   Assets:Bank:Checking                -1800.00 USD
   Expenses:Rent
 
 2026-07-03 * "Blue Mesa Realty" "Invoice 07-03"
   customer: "Blue Mesa Realty"
+  invoice: "INV-260703"
   Assets:Stripe                        2330.10 USD
   Expenses:Fees:Stripe                   69.90 USD
   Income:Services                     -2400.00 USD
@@ -447,6 +473,7 @@
 
 2026-07-09 * "Copper Leaf Yoga" "Invoice 07-09"
   customer: "Copper Leaf Yoga"
+  invoice: "INV-260709"
   Assets:Stripe                        2330.10 USD
   Expenses:Fees:Stripe                   69.90 USD
   Income:Services                     -2400.00 USD
@@ -461,6 +488,7 @@
 
 2026-07-17 * "Northwind Cafe" "Invoice 07-17"
   customer: "Northwind Cafe"
+  invoice: "INV-260717"
   Assets:Stripe                        2330.10 USD
   Expenses:Fees:Stripe                   69.90 USD
   Income:Services                     -2400.00 USD
@@ -487,11 +515,13 @@
   Expenses:Fees:Bank
 
 2026-08-01 * "Mesa Properties" "Office rent"
+  invoice: "MP-2026-08"
   Assets:Bank:Checking                -1800.00 USD
   Expenses:Rent
 
 2026-08-03 * "Blue Mesa Realty" "Invoice 08-03"
   customer: "Blue Mesa Realty"
+  invoice: "INV-260803"
   Assets:Stripe                        2330.10 USD
   Expenses:Fees:Stripe                   69.90 USD
   Income:Services                     -2400.00 USD
@@ -510,6 +540,7 @@
 
 2026-08-09 * "Northwind Cafe" "Invoice 08-09"
   customer: "Northwind Cafe"
+  invoice: "INV-260809"
   Assets:Stripe                        2330.10 USD
   Expenses:Fees:Stripe                   69.90 USD
   Income:Services                     -2400.00 USD
@@ -528,6 +559,7 @@
 
 2026-08-17 * "Acme Dental" "Invoice 08-17"
   customer: "Acme Dental"
+  invoice: "INV-260817"
   Assets:Stripe                         873.60 USD
   Expenses:Fees:Stripe                   26.40 USD
   Income:Services                      -900.00 USD
@@ -554,11 +586,13 @@
   Expenses:Fees:Bank
 
 2026-09-01 * "Mesa Properties" "Office rent"
+  invoice: "MP-2026-09"
   Assets:Bank:Checking                -1800.00 USD
   Expenses:Rent
 
 2026-09-03 * "Acme Dental" "Invoice 09-03"
   customer: "Acme Dental"
+  invoice: "INV-260903"
   Assets:Stripe                         873.60 USD
   Expenses:Fees:Stripe                   26.40 USD
   Income:Services                      -900.00 USD
@@ -585,6 +619,7 @@
 
 2026-09-09 * "Copper Leaf Yoga" "Invoice 09-09"
   customer: "Copper Leaf Yoga"
+  invoice: "INV-260909"
   Assets:Stripe                        1164.90 USD
   Expenses:Fees:Stripe                   35.10 USD
   Income:Services                     -1200.00 USD
@@ -599,6 +634,7 @@
 
 2026-09-17 * "Northwind Cafe" "Invoice 09-17"
   customer: "Northwind Cafe"
+  invoice: "INV-260917"
   Assets:Stripe                        1164.90 USD
   Expenses:Fees:Stripe                   35.10 USD
   Income:Services                     -1200.00 USD
@@ -629,11 +665,13 @@
   Expenses:Fees:Bank
 
 2026-10-01 * "Mesa Properties" "Office rent"
+  invoice: "MP-2026-10"
   Assets:Bank:Checking                -1800.00 USD
   Expenses:Rent
 
 2026-10-03 * "Copper Leaf Yoga" "Invoice 10-03"
   customer: "Copper Leaf Yoga"
+  invoice: "INV-261003"
   Assets:Stripe                        1164.90 USD
   Expenses:Fees:Stripe                   35.10 USD
   Income:Services                     -1200.00 USD
@@ -656,6 +694,7 @@
 
 2026-10-09 * "Blue Mesa Realty" "Invoice 10-09"
   customer: "Blue Mesa Realty"
+  invoice: "INV-261009"
   Assets:Stripe                        2330.10 USD
   Expenses:Fees:Stripe                   69.90 USD
   Income:Services                     -2400.00 USD
@@ -714,3 +753,18 @@
 
 ; Imports from the Import files page are inserted above this line.
 2026-01-01 custom "fava-option" "insert-entry" ".*"
+
+; Invoices sent outside Stripe, waiting to be paid (Accounts Receivable).
+2026-03-02 * "Blue Mesa Realty" "Invoice INV-260302: Brand refresh"
+  invoice: "INV-260302"
+  customer: "Blue Mesa Realty"
+  due: 2026-04-01
+  Assets:AccountsReceivable            3500.00 USD
+  Income:Services
+
+2026-03-20 * "Acme Dental" "Invoice INV-260320: Spring campaign"
+  invoice: "INV-260320"
+  customer: "Acme Dental"
+  due: 2026-04-19
+  Assets:AccountsReceivable            1800.00 USD
+  Income:Services
