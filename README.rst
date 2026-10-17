@@ -107,7 +107,7 @@ Caddy's port is open.
 
     mkdir books
     docker compose -f docker-compose-login.yml up -d
-    docker compose -f docker-compose-login.yml logs login   # the password
+    docker compose -f docker-compose-login.yml logs favabooks-login   # the password
 
 On first start it makes the login: user ``admin`` and a random password,
 printed once in the logs. Only the password's hash is kept, in ``.env``

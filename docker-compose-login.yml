@@ -5,7 +5,7 @@
 #
 #   mkdir books
 #   docker compose -f docker-compose-login.yml up -d
-#   docker compose -f docker-compose-login.yml logs login   # the password
+#   docker compose -f docker-compose-login.yml logs favabooks-login   # the password
 #   # open http://<this computer>:5000 and sign in as admin
 #
 # On first start the login is made for you: user admin (or
@@ -58,7 +58,7 @@ services:
       - ./books:/books
     # Not published: only Caddy (below) can reach it.
 
-  login:
+  favabooks-login:
     image: docker.io/library/caddy:2.11.7-alpine
     container_name: favabooks-login
     restart: unless-stopped
