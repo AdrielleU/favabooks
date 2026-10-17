@@ -34,14 +34,25 @@
     sales: ["qb_customers", "qb_invoices"],
     expenses: ["qb_vendors", "qb_bills"],
     reports: [
-      "income_statement",
-      "balance_sheet",
-      "trial_balance",
-      "query",
+      "qb_reports",
+      "qb_profit_loss",
+      "qb_balance_sheet",
+      "qb_trial_balance",
+      "qb_general_ledger",
       "qb_exports",
     ],
     accounting: ["account", "documents", "editor"],
-    advanced: ["journal", "holdings", "commodities", "events", "statistics"],
+    advanced: [
+      "query",
+      "journal",
+      "income_statement",
+      "balance_sheet",
+      "trial_balance",
+      "holdings",
+      "commodities",
+      "events",
+      "statistics",
+    ],
     settings: ["options", "errors", "qb_close_books", "help"],
   };
   const STORAGE_KEY = "favabooks-nav-open";
@@ -210,21 +221,11 @@
 />
 {#if is_open("reports")}
   <ul class="navigation">
-    <QbLink report="income_statement" name="Profit and loss" key="g i" />
-    <QbLink report="balance_sheet" name={_("Balance Sheet")} key="g b" />
-    <QbLink report="trial_balance" name={_("Trial Balance")} key="g t" />
-    <QbLink report="query" name={_("Query")} key="g q">
-      {#if user_queries.length}
-        <ul class="submenu">
-          {#each user_queries as { query_string, name } (query_string)}
-            <li>
-              <a href={$url_for("query/", { query_string })}>{truncate(name)}</a
-              >
-            </li>
-          {/each}
-        </ul>
-      {/if}
-    </QbLink>
+    <QbLink report="qb_reports" name="All reports" />
+    <QbLink report="qb_profit_loss" name="Profit and loss" key="g i" />
+    <QbLink report="qb_balance_sheet" name="Balance sheet" key="g b" />
+    <QbLink report="qb_trial_balance" name="Trial balance" key="g t" />
+    <QbLink report="qb_general_ledger" name="General ledger" />
     <QbLink report="qb_exports" name="Export for CPA" />
   </ul>
 {/if}
@@ -257,7 +258,22 @@
 />
 {#if is_open("advanced")}
   <ul class="navigation">
+    <QbLink report="query" name={_("Query")} key="g q">
+      {#if user_queries.length}
+        <ul class="submenu">
+          {#each user_queries as { query_string, name } (query_string)}
+            <li>
+              <a href={$url_for("query/", { query_string })}>{truncate(name)}</a
+              >
+            </li>
+          {/each}
+        </ul>
+      {/if}
+    </QbLink>
     <QbLink report="journal" name="Journal" key="g j" />
+    <QbLink report="income_statement" name="Fava income statement" />
+    <QbLink report="balance_sheet" name="Fava balance sheet" />
+    <QbLink report="trial_balance" name="Fava trial balance" />
     <QbLink report="holdings" name={_("Holdings")} key="g h" />
     <QbLink report="commodities" name={_("Commodities")} key="g c" />
     <QbLink

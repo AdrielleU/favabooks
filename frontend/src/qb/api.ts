@@ -17,6 +17,7 @@ import {
   boolean,
   date,
   decimal,
+  lazy,
   number,
   object,
   optional,
@@ -649,3 +650,129 @@ export const put_qb_doc_csv_import = async (
     body,
     object({ docs: number, payments: number }),
   );
+
+// --- Reports ----------------------------------------------------------------
+
+/** An account in a report tree; `amounts` include its children. */
+export interface QbNode {
+  account: string;
+  name: string;
+  amounts: number[];
+  children: QbNode[];
+  own: number[];
+}
+
+const qb_node: Validator<QbNode> = object({
+  account: string,
+  name: string,
+  amounts: array(decimal),
+  children: array(lazy(() => qb_node)),
+  own: array(decimal),
+});
+
+const qb_column = object({
+  label: string,
+  start: optional(date),
+  end: date,
+});
+
+const qb_statement = object({
+  title: string,
+  company: string,
+  currency: string,
+  columns: array(qb_column),
+  blocks: array(
+    object({
+      kind: string,
+      key: string,
+      title: string,
+      amounts: array(decimal),
+      node: optional(qb_node),
+    }),
+  ),
+  unconverted: array(string),
+});
+
+const qb_trial_balance = object({
+  company: string,
+  currency: string,
+  as_of: date,
+  fiscal_start: date,
+  rows: array(object({ account: string, debit: decimal, credit: decimal })),
+  debit: decimal,
+  credit: decimal,
+  unconverted: array(string),
+});
+
+const qb_general_ledger = object({
+  company: string,
+  currency: string,
+  start: date,
+  end: date,
+  accounts: array(
+    object({
+      account: string,
+      opening: decimal,
+      rows: array(
+        object({
+          entry_hash: string,
+          date,
+          payee: string,
+          narration: string,
+          split: array(string),
+          amount: decimal,
+          balance: decimal,
+        }),
+      ),
+      closing: decimal,
+    }),
+  ),
+  unconverted: array(string),
+});
+
+const qb_check = object({
+  key: string,
+  title: string,
+  ok: boolean,
+  detail: string,
+  report: string,
+  params: record(string),
+});
+
+export type QbStatement = ValidationT<typeof qb_statement>;
+export type QbColumn = ValidationT<typeof qb_column>;
+export type QbTrialBalance = ValidationT<typeof qb_trial_balance>;
+export type QbGeneralLedger = ValidationT<typeof qb_general_ledger>;
+export type QbCheck = ValidationT<typeof qb_check>;
+
+/** Profit and loss; `by` is total, month, quarter or year. */
+export const get_qb_profit_loss = async (params: {
+  start: string;
+  end: string;
+  by: string;
+  compare: string;
+}): Promise<QbStatement> => qb_get("qb_profit_loss", params, qb_statement);
+
+/** Balance sheet at the end of `as_of`. */
+export const get_qb_balance_sheet = async (params: {
+  as_of: string;
+  compare: string;
+}): Promise<QbStatement> => qb_get("qb_balance_sheet", params, qb_statement);
+
+/** Trial balance at the end of `as_of`. */
+export const get_qb_trial_balance = async (
+  as_of: string,
+): Promise<QbTrialBalance> =>
+  qb_get("qb_trial_balance", { as_of }, qb_trial_balance);
+
+/** General ledger for a period, optionally one account subtree. */
+export const get_qb_general_ledger = async (params: {
+  start: string;
+  end: string;
+  account: string;
+}): Promise<QbGeneralLedger> =>
+  qb_get("qb_general_ledger", params, qb_general_ledger);
+
+/** Year-end checks before sending the books to an accountant. */
+export const get_qb_year_checks = async (year: number): Promise<QbCheck[]> =>
+  qb_get("qb_year_checks", { year: year.toString() }, array(qb_check));

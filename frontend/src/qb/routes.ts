@@ -11,6 +11,13 @@ import { qb_exports } from "./exports/index.ts";
 import { qb_reclassify } from "./reclassify/index.ts";
 import { qb_reconcile } from "./reconcile/index.ts";
 import { qb_register } from "./register/index.ts";
+import {
+  qb_balance_sheet,
+  qb_general_ledger,
+  qb_profit_loss,
+  qb_reports,
+  qb_trial_balance,
+} from "./reports/index.ts";
 import { qb_review } from "./review/index.ts";
 import { qb_transactions } from "./transactions/index.ts";
 import { wip_routes } from "./wip/index.ts";
@@ -24,6 +31,11 @@ export const qb_routes: FrontendRoute[] = [
   qb_register,
   qb_reconcile,
   qb_reclassify,
+  qb_reports,
+  qb_profit_loss,
+  qb_balance_sheet,
+  qb_trial_balance,
+  qb_general_ledger,
   qb_exports,
   qb_customers,
   qb_invoices,

@@ -129,7 +129,7 @@
   <section class="qb-card">
     <div class="card-head">
       <h3>Profit and loss</h3>
-      <a href={$url_for("income_statement/")}>View report</a>
+      <a href={$url_for("qb_profit_loss/")}>View report</a>
     </div>
     <p class="big" class:negative={data.this_month.net < 0}>
       {money(data.this_month.net, cur)}
