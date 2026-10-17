@@ -104,7 +104,7 @@ jobs:
               echo "**Failing** ($TESTS): see the test jobs of $RUN"
             fi
             echo
-            echo "_Checked by the Upstream workflow: $RUN_"
+            echo "_Checked by the Upstream workflow: ${RUN}_"
           } > body.md
           number=$(gh issue list -R "$REPO" --state open --search "in:title \"$title\"" \
             --json number,title --jq ".[] | select(.title == \"$title\") | .number" | head -1)
