@@ -95,6 +95,38 @@ Fava has no login, so the compose file only listens on this computer. Before
 opening it to a network, put it behind a reverse proxy with a login;
 ``docker/compose.yaml`` is a production setup (git auto-commit, proxy port).
 
+Several companies, or personal money
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+One Favabooks can keep the books of several LLCs and your personal money,
+each in its own folder with its own accounts and documents. List one
+``main.beancount`` per company in ``LEDGERS`` in the compose file:
+
+.. code-block:: yaml
+
+    LEDGERS: "/books/main.beancount /books/second-llc/main.beancount /books/personal/main.beancount"
+
+then run ``docker compose up -d``. Books that don't exist yet are created
+and named after their folder (``second-llc`` becomes "Second LLC"); a folder
+named like ``personal``, ``household`` or ``family`` gets a household chart
+of accounts (groceries, rent, salary, draws from your business) instead of
+a business one. Switch between them from the company name at the top left.
+If something is wrong, such as two companies in one folder or with the same
+name, the container stops with a message saying what to fix (see
+``docker compose logs``).
+
+Everyone who can open Favabooks can open every company in it. To keep
+someone out of a company, run it as a separate instance (a second folder
+with its own compose file and port) behind its own login.
+
+Without Docker, create books with ``docker/new-books.sh``:
+
+.. code-block:: bash
+
+    docker/new-books.sh ~/books/second-llc            # business, "Second LLC"
+    docker/new-books.sh ~/books/personal personal "Our household"
+    uv run fava ~/books/main.beancount ~/books/second-llc/main.beancount
+
 Running from source
 -------------------
 

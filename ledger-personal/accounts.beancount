@@ -1,0 +1,34 @@
+; Chart of accounts: a starting point for personal or household money. Add,
+; rename (nickname) or close accounts in Accounting -> Chart of accounts.
+; Money moved in from your own business is a draw on the business's books
+; and Income:Business:Draws here.
+2020-01-01 open Assets:Bank:Checking            USD
+2020-01-01 open Assets:Bank:Savings             USD
+2020-01-01 open Assets:Cash                     USD
+2020-01-01 open Liabilities:CreditCard:Card     USD
+2020-01-01 open Liabilities:Loans:Car           USD
+2020-01-01 open Liabilities:Loans:Student       USD
+2020-01-01 open Equity:Opening-Balances
+2020-01-01 open Income:Salary                   USD
+2020-01-01 open Income:Business:Draws           USD
+2020-01-01 open Income:Interest                 USD
+2020-01-01 open Income:Refunds                  USD
+2020-01-01 open Income:Other                    USD
+2020-01-01 open Expenses:Housing:Rent           USD
+2020-01-01 open Expenses:Housing:Utilities      USD
+2020-01-01 open Expenses:Housing:Internet       USD
+2020-01-01 open Expenses:Groceries              USD
+2020-01-01 open Expenses:Dining                 USD
+2020-01-01 open Expenses:Transportation         USD
+2020-01-01 open Expenses:Health                 USD
+2020-01-01 open Expenses:Insurance              USD
+2020-01-01 open Expenses:Phone                  USD
+2020-01-01 open Expenses:Subscriptions          USD
+2020-01-01 open Expenses:Shopping               USD
+2020-01-01 open Expenses:Entertainment          USD
+2020-01-01 open Expenses:Travel                 USD
+2020-01-01 open Expenses:Gifts                  USD
+2020-01-01 open Expenses:Education              USD
+2020-01-01 open Expenses:Fees:Bank              USD
+2020-01-01 open Expenses:Taxes                  USD
+2020-01-01 open Expenses:Uncategorized          USD

@@ -1,0 +1,17 @@
+; Favabooks personal books: household money, kept apart from any business.
+; Rename below (or let the Docker container name it after its folder), then
+; add your bank and card accounts in Banking -> Bank & card accounts.
+option "title" "Personal"
+option "operating_currency" "USD"
+option "documents" "documents"
+
+; Checks that receipts named on transactions (document: "...") exist.
+plugin "fava.qb_receipts"
+
+2020-01-01 custom "fava-option" "default-page" "qb_dashboard/"
+2020-01-01 custom "fava-option" "auto-reload" "true"
+2020-01-01 custom "fava-option" "invert-income-liabilities-equity" "true"
+2020-01-01 custom "fava-option" "import-dirs" "inbox"
+
+include "accounts.beancount"
+include "transactions.beancount"

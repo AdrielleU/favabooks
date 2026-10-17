@@ -28,8 +28,10 @@ RUN useradd --create-home --uid 1000 fava \
  && mkdir /books && chown fava:fava /books
 # Starter books, copied on first run (see entrypoint.sh)
 COPY ledger-starter /opt/favabooks/ledger-starter
+COPY ledger-personal /opt/favabooks/ledger-personal
 COPY ledger-template /opt/favabooks/ledger-template
 COPY docker/entrypoint.sh /usr/local/bin/favabooks-entrypoint
+COPY docker/new-books.sh /usr/local/bin/favabooks-new
 USER fava
 RUN git config --global --add safe.directory '*'
 WORKDIR /books

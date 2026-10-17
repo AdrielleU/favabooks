@@ -16,11 +16,17 @@ services:
     container_name: favabooks
     restart: unless-stopped
     environment:
-      # Your company name, used when new (blank) books are created
+      # Your company name, used when the first company's books are created
       FAVABOOKS_COMPANY: "${FAVABOOKS_COMPANY:-My Company LLC}"
       # What to create on first run: blank, demo or none
       FAVABOOKS_STARTER: "${FAVABOOKS_STARTER:-blank}"
-      # Space-separated main.beancount files, one per company
+      # Space-separated main.beancount files, one per company. To add
+      # another LLC or personal books, list another file in its own folder
+      # and run "docker compose up -d"; missing books are created, named
+      # after the folder (second-llc -> "Second LLC"; a folder named
+      # personal, household or family gets personal accounts):
+      #   LEDGERS: "/books/main.beancount /books/second-llc/main.beancount /books/personal/main.beancount"
+      # Switch company from the name at the top left of Favabooks.
       LEDGERS: "/books/main.beancount"
       # Bank & card account settings and import scripts live here
       PYTHONPATH: "/books/importers"
