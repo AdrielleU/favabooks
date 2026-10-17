@@ -198,10 +198,10 @@
           <strong>With an AI assistant</strong>
           <p class="muted">
             Run Claude Code, Codex or another coding assistant in your books
-            folder (<code>{books_folder}</code>) and ask it to
-            <em>import the inbox</em> (in Claude Code:
-            <code>/import-inbox</code>). It follows the books' AGENTS.md and
-            adds entries for you to accept in For review.
+            folder (<code>{books_folder}</code>) and ask it to "import the
+            inbox" (in Claude Code:
+            <code class="nowrap">/import-inbox</code>). It follows the books'
+            AGENTS.md and adds entries for you to accept in For review.
           </p>
         </div>
       </div>
@@ -286,6 +286,10 @@
   li code,
   .way code {
     overflow-wrap: anywhere;
+  }
+
+  .nowrap {
+    white-space: nowrap;
   }
 
   .waiting {

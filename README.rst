@@ -65,7 +65,8 @@ What Favabooks adds
           :alt: Export for CPA
    * - .. image:: screenshots/chart-of-accounts.png
           :alt: Chart of accounts
-     -
+     - .. image:: screenshots/add-files.png
+          :alt: Add your files: where the inbox is, for Windows, Mac and Linux
 
 Screenshots show the fictional demo company in ``ledger-template/``. See
 `ROADMAP.md <ROADMAP.md>`__ for what's next.

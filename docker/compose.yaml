@@ -1,9 +1,9 @@
 services:
   favabooks:
-    # Published image. "0.3" follows 0.3.x patches: docker compose pull && docker compose up -d
-    # Pin an exact release (0.3.0) or use "latest". To build from source instead:
+    # Published image. "0.4" follows 0.4.x patches: docker compose pull && docker compose up -d
+    # Pin an exact release (0.4.0) or use "latest". To build from source instead:
     #   docker compose -f compose.yaml -f compose.build.yaml up -d --build
-    image: ghcr.io/adrielleu/favabooks:${FAVABOOKS_TAG:-0.3}
+    image: ghcr.io/adrielleu/favabooks:${FAVABOOKS_TAG:-0.4}
     # AI assistants run commands in it by this name (see the books' AGENTS.md)
     container_name: favabooks
     restart: unless-stopped

@@ -33,6 +33,7 @@ and bug reports are welcome as GitHub issues.
 
 - [x] Release v0.2.0 (importers and the new UI)
 - [x] Release v0.3.0 (sales, expenses, reports, month-end)
+- [x] Release v0.4.0 (several companies, AI assistant intake)
 - [ ] Verify the unverified bank layouts (Bluevine, Relay, Novo, PNC) against
   real downloads; a header row is enough
 - [ ] Category suggestions from past choices (smart_importer) so imports arrive
