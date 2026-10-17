@@ -106,7 +106,7 @@ to the compose file, and start it:
 
 .. code-block:: bash
 
-    docker run --rm -it caddy:2.11.7-alpine caddy hash-password   # asks twice
+    docker run --rm -it docker.io/library/caddy:2.11.7-alpine caddy hash-password   # asks twice
     cat > .env <<'END'
     FAVABOOKS_LOGIN_USER=me
     FAVABOOKS_LOGIN_HASH='$2a$14$...the hash...'

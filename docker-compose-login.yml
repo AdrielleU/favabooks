@@ -5,7 +5,7 @@
 #
 #   mkdir books
 #   # Make the password hash (asks for the password twice):
-#   docker run --rm -it caddy:2.11.7-alpine caddy hash-password
+#   docker run --rm -it docker.io/library/caddy:2.11.7-alpine caddy hash-password
 #   # Put the login in a file named .env next to this one. Single quotes
 #   # around the hash: it's full of $ signs.
 #   #   FAVABOOKS_LOGIN_USER=me
@@ -57,7 +57,7 @@ services:
     # Not published: only Caddy (below) can reach it.
 
   login:
-    image: caddy:2.11.7-alpine
+    image: docker.io/library/caddy:2.11.7-alpine
     container_name: favabooks-login
     restart: unless-stopped
     depends_on:
