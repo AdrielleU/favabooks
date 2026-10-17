@@ -1,5 +1,6 @@
 import type { FrontendRoute } from "../reports/route.ts";
 import { qb_banks } from "./banks/index.ts";
+import { qb_events, qb_statistics } from "./books/index.ts";
 import { qb_chart } from "./chart/index.ts";
 import { qb_dashboard } from "./dashboard/index.ts";
 import {
@@ -42,6 +43,8 @@ export const qb_routes: FrontendRoute[] = [
   qb_exports,
   qb_chart,
   qb_prices,
+  qb_events,
+  qb_statistics,
   qb_customers,
   qb_invoices,
   qb_vendors,

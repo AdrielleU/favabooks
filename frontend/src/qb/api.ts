@@ -23,6 +23,7 @@ import {
   optional,
   record,
   string,
+  tuple,
 } from "../lib/validation.ts";
 import { base_url } from "../stores/index.ts";
 import { set_mtime } from "../stores/mtime.ts";
@@ -932,3 +933,72 @@ export const put_qb_price = async (body: {
 /** Delete a price. */
 export const delete_qb_price = async (entry_hash: string): Promise<string> =>
   qb_delete("qb_price", { entry_hash }, string);
+
+// --- Events and statistics ------------------------------------------------------
+
+const qb_event = object({
+  entry_hash: string,
+  date,
+  type: string,
+  description: string,
+});
+
+const qb_events = object({
+  today: date,
+  types: array(
+    object({
+      type: string,
+      current: optional(qb_event),
+      upcoming: optional(qb_event),
+      count: number,
+    }),
+  ),
+  events: array(qb_event),
+  suggestions: array(string),
+});
+
+const qb_statistics = object({
+  today: date,
+  first_date: optional(date),
+  last_date: optional(date),
+  transactions: number,
+  to_review: number,
+  open_accounts: number,
+  documents: number,
+  errors: number,
+  entries: record(number),
+  months: array(
+    object({ month: date, transactions: number, to_review: number }),
+  ),
+  accounts: array(
+    object({
+      account: string,
+      postings: number,
+      last_date: optional(date),
+      days: optional(number),
+    }),
+  ),
+  postings: array(tuple(string, number)),
+});
+
+export type QbEvents = ValidationT<typeof qb_events>;
+export type QbStatistics = ValidationT<typeof qb_statistics>;
+
+/** Events with the current value per type. */
+export const get_qb_events = async (): Promise<QbEvents> =>
+  qb_get("qb_events", {}, qb_events);
+
+/** Add an event. */
+export const put_qb_event = async (body: {
+  date: string;
+  type: string;
+  description: string;
+}): Promise<string> => qb_put("qb_event", body, string);
+
+/** Delete an event. */
+export const delete_qb_event = async (entry_hash: string): Promise<string> =>
+  qb_delete("qb_event", { entry_hash }, string);
+
+/** Entry counts, monthly activity and account freshness. */
+export const get_qb_statistics = async (): Promise<QbStatistics> =>
+  qb_get("qb_statistics", {}, qb_statistics);

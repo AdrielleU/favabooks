@@ -50,6 +50,8 @@
       "trial_balance",
       "holdings",
       "qb_prices",
+      "qb_events",
+      "qb_statistics",
       "commodities",
       "events",
       "statistics",
@@ -278,12 +280,11 @@
     <QbLink report="holdings" name={_("Holdings")} key="g h" />
     <QbLink report="qb_prices" name="Currencies & prices" key="g c" />
     <QbLink
-      report="events"
-      name={_("Events")}
-      key="g E"
+      report="qb_events"
+      name="Business details"
       bubble={[upcoming_events_count, "info"]}
     />
-    <QbLink report="statistics" name={_("Statistics")} key="g s" />
+    <QbLink report="qb_statistics" name="Statistics" key="g s" />
   </ul>
 {/if}
 
