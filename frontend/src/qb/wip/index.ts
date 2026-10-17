@@ -25,9 +25,4 @@ export function wip_route(
 /** Pages that are planned but not built yet. Every one has a nav entry. */
 export const wip_routes = [
   // Phase 2 and 3.
-  wip_route(
-    "qb_close_books",
-    "Close books",
-    "Lock a period so entries on or before the date can't be edited.",
-  ),
 ];

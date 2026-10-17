@@ -1002,3 +1002,30 @@ export const delete_qb_event = async (entry_hash: string): Promise<string> =>
 /** Entry counts, monthly activity and account freshness. */
 export const get_qb_statistics = async (): Promise<QbStatistics> =>
   qb_get("qb_statistics", {}, qb_statistics);
+
+// --- Close books ----------------------------------------------------------------
+
+const qb_close_state = object({
+  closed_through: optional(date),
+  history: array(
+    object({ entry_hash: string, date, note: string, checks: number }),
+  ),
+  suggested: date,
+  today: date,
+});
+
+export type QbCloseState = ValidationT<typeof qb_close_state>;
+
+/** Whether and how far the books are closed. */
+export const get_qb_close = async (): Promise<QbCloseState> =>
+  qb_get("qb_close", {}, qb_close_state);
+
+/** Close the books through a date. */
+export const put_qb_close = async (body: {
+  date: string;
+  note: string;
+}): Promise<string> => qb_put("qb_close", body, string);
+
+/** Reopen the books (remove the latest close). */
+export const delete_qb_close = async (): Promise<string> =>
+  qb_delete("qb_close", {}, string);

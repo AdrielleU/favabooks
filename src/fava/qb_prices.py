@@ -24,6 +24,7 @@ from fava.context import g
 from fava.core.file import get_entry_slice
 from fava.json_api import api_endpoint
 from fava.json_api import ValidationError
+from fava.qb_close import check_open
 
 if TYPE_CHECKING:  # pragma: no cover
     from fava.beans.abc import Directive
@@ -148,6 +149,7 @@ def put_qb_price(date: str, currency: str, price: str, quote: str = "") -> str:
     except ValueError:
         msg = "the date looks like 2026-01-31"
         raise ValidationError(msg) from None
+    check_open([day])
     base = _currency(currency, "currency")
     target = _currency(quote or _home(), "price currency")
     if base == target:
@@ -181,6 +183,7 @@ def delete_qb_price(entry_hash: str) -> str:
     if entry is None:
         msg = "that price isn't in the books (any more)"
         raise ValidationError(msg)
+    check_open([entry.date])
     _, sha256sum = get_entry_slice(entry)
     ledger.file.delete_entry_slice(entry_hash, sha256sum)
     return f"Deleted the price of {entry.currency} on {entry.date}."

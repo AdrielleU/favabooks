@@ -26,6 +26,7 @@ from fava.beans.funcs import hash_entry
 from fava.context import g
 from fava.json_api import api_endpoint
 from fava.json_api import ValidationError
+from fava.qb_close import check_open
 
 if TYPE_CHECKING:  # pragma: no cover
     from fava.beans.abc import Directive
@@ -236,6 +237,7 @@ def put_qb_reconcile(
         msg = "some transactions are not open for this statement"
         raise ValidationError(msg)
     picked = list(dict.fromkeys(entry_hashes))
+    check_open([end, *(rows[h].date for h in picked)])
     cleared = state.beginning_balance + sum(
         (rows[h].amount for h in picked), ZERO
     )

@@ -307,7 +307,7 @@
         bubble={[$errors.length, "error"]}
       />
     {/if}
-    <QbLink report="qb_close_books" name="Close books" soon />
+    <QbLink report="qb_close_books" name="Close books" />
     <QbLink report="help" name={_("Help")} key="g H">
       <button
         type="button"

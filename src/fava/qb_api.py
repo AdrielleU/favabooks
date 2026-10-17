@@ -20,6 +20,7 @@ from msgspec import Struct
 # transactions endpoints.
 from fava import qb_books  # noqa: F401
 from fava import qb_chart  # noqa: F401
+from fava import qb_close  # noqa: F401
 from fava import qb_connections  # noqa: F401
 from fava import qb_prices  # noqa: F401
 from fava import qb_qbo  # noqa: F401
@@ -35,6 +36,7 @@ from fava.core.inventory import CounterInventory
 from fava.helpers import FavaAPIError
 from fava.json_api import api_endpoint
 from fava.json_api import ValidationError
+from fava.qb_close import closed_through
 from fava.qb_importers import BANK_FORMATS
 from fava.qb_importers import BankCSV
 from fava.qb_importers import StripePayouts
@@ -337,11 +339,23 @@ def _edit_entries(
     ledger = g.ledger
     entries = []
     failed = []
+    closed = closed_through()
     for entry_hash in dict.fromkeys(entry_hashes):
         try:
-            entries.append((entry_hash, ledger.get_entry(entry_hash)))
+            entry = ledger.get_entry(entry_hash)
         except FavaAPIError as error:
             failed.append(QbEditFailure(entry_hash, str(error)))
+            continue
+        if closed is not None and entry.date <= closed:
+            failed.append(
+                QbEditFailure(
+                    entry_hash,
+                    f"the books are closed through {closed}; reopen them "
+                    "in Settings → Close books to change this",
+                )
+            )
+            continue
+        entries.append((entry_hash, entry))
     # Edit bottom-up so line numbers of entries not yet edited stay valid.
     entries.sort(
         key=lambda pair: (pair[1].meta["filename"], pair[1].meta["lineno"]),

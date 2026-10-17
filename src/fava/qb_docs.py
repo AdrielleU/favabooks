@@ -38,6 +38,7 @@ from fava.beans.funcs import hash_entry
 from fava.context import g
 from fava.core.file import get_entry_slice
 from fava.json_api import ValidationError
+from fava.qb_close import check_open
 from fava.qb_importers.bank_csv import parse_amount
 from fava.qb_importers.bank_csv import parse_date
 from fava.qb_transactions import documents_by_name
@@ -645,6 +646,7 @@ def record(side: Side, values: dict[str, str]) -> QbRecorded:
     ledger.changed()
     form = msgspec.convert(values, DocForm)
     date, due, amount = _parse_form(side, form)
+    check_open([date])
     entry = _doc_entry(side, form, date, due, amount)
     ledger.file.insert_entries(_with_ledger_open(side, [entry], date))
     ledger.load_file()
@@ -761,6 +763,7 @@ def match_payment(side: Side, key: str, entry_hash: str) -> str:
     ledger.changed()
     doc = _open_doc(side, key)
     entry = ledger.get_entry(entry_hash)
+    check_open([entry.date])
     payment = (
         _candidate(side, entry) if isinstance(entry, Transaction) else None
     )
@@ -1031,6 +1034,7 @@ def import_csv(
     if not entries:
         msg = f"there are no new {side.doc}s in this file"
         raise ValidationError(msg)
+    check_open(e.date for e in entries)
     ledger.file.insert_entries(
         _with_ledger_open(side, entries, min(e.date for e in entries))
     )
