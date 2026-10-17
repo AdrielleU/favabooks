@@ -816,3 +816,23 @@ export const get_qb_qbo_export = async (
   mode: "transactions" | "balances",
 ): Promise<QbQboExport> =>
   qb_get("qb_qbo_export", { year: year.toString(), mode }, qb_qbo_export);
+
+const qb_balance_point = object({
+  date,
+  assets: decimal,
+  liabilities: decimal,
+  equity: decimal,
+});
+
+export type QbBalancePoint = ValidationT<typeof qb_balance_point>;
+
+/** Assets, liabilities and equity at month ends up to `as_of`. */
+export const get_qb_balance_trend = async (
+  as_of: string,
+  months: number,
+): Promise<QbBalancePoint[]> =>
+  qb_get(
+    "qb_balance_trend",
+    { as_of, months: months.toString() },
+    array(qb_balance_point),
+  );

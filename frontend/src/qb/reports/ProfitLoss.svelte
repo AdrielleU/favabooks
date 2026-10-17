@@ -6,9 +6,15 @@
   import { router } from "../../router.ts";
   import { years } from "../../stores/index.ts";
   import type { QbStatement } from "../api.ts";
+  import DonutChart from "../charts/DonutChart.svelte";
+  import type { Slice } from "../charts/data.ts";
+  import { change_text, kpis, pnl_trend, top_slices } from "../charts/data.ts";
+  import TrendChart from "../charts/TrendChart.svelte";
   import PeriodPicker from "../docs/PeriodPicker.svelte";
   import type { Period } from "../docs/periods.ts";
   import { iso, to_csv } from "../docs/periods.ts";
+  import { money } from "../format.ts";
+  import ChartsPanel from "./ChartsPanel.svelte";
   import { download_csv } from "./download.ts";
   import {
     date_range_label,
@@ -23,12 +29,16 @@
 
   let {
     statement,
+    trend,
+    compared,
     period,
     today,
     by,
     compare,
   }: {
     statement: QbStatement;
+    trend: QbStatement;
+    compared: QbStatement;
     period: Period;
     today: Date;
     by: string;
@@ -42,6 +52,49 @@
   let subtitle = $derived(
     total ? date_range_label(total.start, total.end) : "",
   );
+
+  let points = $derived(pnl_trend(trend));
+  let now = $derived(kpis(compared, 0));
+  let before = $derived(kpis(compared, 1));
+  let currency = $derived(statement.currency);
+  const SUFFIX = "vs previous period";
+  let cards = $derived([
+    {
+      label: "Income",
+      value: money(now.income, currency),
+      change: change_text(now.income, before.income, SUFFIX),
+      good: now.income >= before.income,
+    },
+    {
+      label: "Expenses",
+      value: money(now.expenses, currency),
+      change: change_text(now.expenses, before.expenses, SUFFIX),
+      good: now.expenses <= before.expenses,
+    },
+    {
+      label: "Net income",
+      value: money(now.net, currency),
+      change: change_text(now.net, before.net, SUFFIX),
+      good: now.net >= before.net,
+    },
+    {
+      label: "Profit margin",
+      value: now.margin === null ? "—" : `${now.margin.toFixed(1)}%`,
+      change: "",
+      good: null,
+    },
+  ]);
+  let slices = $derived(
+    top_slices(
+      compared.blocks.find((b) => b.key === "expenses")?.node ?? null,
+      0,
+    ),
+  );
+  const range = (start: Date | null, end: Date) => ({
+    period: "custom",
+    from: start ? iso(start) : "",
+    to: iso(end),
+  });
 
   function go(params: Record<string, string>) {
     const url = new URL(window.location.href);
@@ -109,6 +162,63 @@
     collapse_all(statement.blocks.flatMap((b) => parents(b.node)));
   }}
 >
+  {#snippet charts()}
+    <ChartsPanel
+      kpis={cards}
+      trend_title="Income and expenses"
+      side_title="Expenses by category"
+    >
+      {#snippet trend()}
+        <TrendChart
+          labels={points.map((p) => p.label)}
+          values={{
+            income: points.map((p) => p.income),
+            expenses: points.map((p) => p.expenses),
+            net: points.map((p) => p.net),
+          }}
+          series={[
+            { key: "income", label: "Income", color: "#10b981", kind: "bar" },
+            {
+              key: "expenses",
+              label: "Expenses",
+              color: "#f59e0b",
+              kind: "bar",
+            },
+            { key: "net", label: "Net income", color: "#2563eb", kind: "line" },
+          ]}
+          {currency}
+          onselect={(i: number) => {
+            const p = points[i];
+            if (p) {
+              go(range(p.start, p.end));
+            }
+          }}
+        />
+      {/snippet}
+      {#snippet side()}
+        {#if slices.length}
+          <DonutChart
+            {slices}
+            {currency}
+            title="Expenses by category"
+            onselect={(s: Slice) => {
+              const column = compared.columns[0];
+              if (s.account && column) {
+                router.navigate(
+                  $url_for("qb_transactions/", {
+                    account: s.account,
+                    ...range(column.start, column.end),
+                  }),
+                );
+              }
+            }}
+          />
+        {:else}
+          <p class="muted">No expenses in this period.</p>
+        {/if}
+      {/snippet}
+    </ChartsPanel>
+  {/snippet}
   {#snippet options()}
     <PeriodPicker {period} {today} dates={months_of_years($years, today)} />
     <label class="opt">
@@ -151,6 +261,10 @@
 </ReportFrame>
 
 <style>
+  .muted {
+    color: var(--qb-muted);
+  }
+
   .opt {
     display: flex;
     gap: 0.4rem;

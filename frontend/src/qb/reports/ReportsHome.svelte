@@ -3,6 +3,11 @@
 -->
 <script lang="ts">
   import { url_for } from "../../helpers.ts";
+  import { router } from "../../router.ts";
+  import type { QbStatement } from "../api.ts";
+  import { pnl_trend } from "../charts/data.ts";
+  import TrendChart from "../charts/TrendChart.svelte";
+  import { iso } from "../docs/periods.ts";
   import Icon from "../Icon.svelte";
   import type { IconName } from "../icons.ts";
 
@@ -12,6 +17,9 @@
     report: `${string}/`;
     params?: Record<string, string>;
   }
+
+  let { trend }: { trend: QbStatement } = $props();
+  let points = $derived(pnl_trend(trend));
 
   const last_year = (new Date().getUTCFullYear() - 1).toString();
 
@@ -139,6 +147,39 @@
   ];
 </script>
 
+{#if points.length > 1}
+  <section class="qb-card snapshot">
+    <h2><Icon name="trending-up" size={18} /> Income and expenses</h2>
+    <TrendChart
+      labels={points.map((p) => p.label)}
+      values={{
+        income: points.map((p) => p.income),
+        expenses: points.map((p) => p.expenses),
+        net: points.map((p) => p.net),
+      }}
+      series={[
+        { key: "income", label: "Income", color: "#10b981", kind: "bar" },
+        { key: "expenses", label: "Expenses", color: "#f59e0b", kind: "bar" },
+        { key: "net", label: "Net income", color: "#2563eb", kind: "line" },
+      ]}
+      currency={trend.currency}
+      height={220}
+      onselect={(i: number) => {
+        const p = points[i];
+        if (p) {
+          router.navigate(
+            $url_for("qb_profit_loss/", {
+              period: "custom",
+              from: p.start ? iso(p.start) : "",
+              to: iso(p.end),
+            }),
+          );
+        }
+      }}
+    />
+  </section>
+{/if}
+
 {#each GROUPS as group (group.title)}
   <section class="group">
     <h2><Icon name={group.icon} size={18} /> {group.title}</h2>
@@ -154,6 +195,10 @@
 {/each}
 
 <style>
+  .snapshot {
+    margin-bottom: 1.5rem;
+  }
+
   .group {
     margin-bottom: 1.5rem;
   }

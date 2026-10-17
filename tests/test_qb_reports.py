@@ -345,3 +345,19 @@ def test_year_checks(client: FlaskClient, tmp_path: Path) -> None:
         c["key"]: c for c in ok(app.test_client(), "qb_year_checks", year=2025)
     }
     assert again["reconciled"]["ok"]
+
+
+def test_balance_trend(client: FlaskClient) -> None:
+    points = ok(client, "qb_balance_trend", as_of="2025-03-15", months=3)
+    assert [p["date"] for p in points] == [
+        "2025-01-31",
+        "2025-02-28",
+        "2025-03-15",
+    ]
+    last = points[-1]
+    assert Decimal(last["assets"]) == Decimal("987.00")
+    assert Decimal(last["liabilities"]) == Decimal(75)
+    assert Decimal(last["equity"]) == Decimal("912.00")
+    assert Decimal(points[0]["liabilities"]) == 0
+    one = ok(client, "qb_balance_trend", as_of="2024-01-01", months=0)
+    assert [p["date"] for p in one] == ["2024-01-01"]

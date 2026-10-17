@@ -775,3 +775,61 @@ def get_qb_year_checks(year: int) -> list[QbCheck]:
             period,
         ),
     ]
+
+
+# --- Balance trend ------------------------------------------------------
+
+
+class QbBalancePoint(Struct, frozen=True):
+    """Totals at a month end (liabilities and equity positive)."""
+
+    date: datetime.date
+    assets: Decimal
+    liabilities: Decimal
+    equity: Decimal
+
+
+@api_endpoint
+def get_qb_balance_trend(
+    as_of: str = "", months: int = 12
+) -> list[QbBalancePoint]:
+    """Assets, liabilities and equity at each month end up to `as_of`.
+
+    Equity includes all income less expenses (net worth = assets less
+    liabilities). The last point is `as_of` itself.
+    """
+    g.ledger.changed()
+    date = _as_of(as_of)
+    count = max(1, min(months, 120))
+    ends = sorted(
+        {date}
+        | {
+            _add_months(date.replace(day=1), -i) - DAY
+            for i in range(count - 1)
+        }
+    )
+    roots = _roots()
+    side = {
+        roots["assets"]: "assets",
+        roots["liabilities"]: "liabilities",
+    }
+    amounts = _Amounts()
+    totals = {"assets": ZERO, "liabilities": ZERO}
+    postings = sorted(
+        _postings((roots["assets"], roots["liabilities"])),
+        key=lambda pair: pair[0].date,
+    )
+    points = []
+    position = 0
+    for end in ends:
+        while position < len(postings) and postings[position][0].date <= end:
+            txn, posting = postings[position]
+            position += 1
+            number = amounts.of(posting, txn.date)
+            if number is not None:
+                totals[side[posting.account.split(":", 1)[0]]] += number
+        assets, liabilities = totals["assets"], -totals["liabilities"]
+        points.append(
+            QbBalancePoint(end, assets, liabilities, assets - liabilities)
+        )
+    return points

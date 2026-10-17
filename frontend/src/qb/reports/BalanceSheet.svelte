@@ -4,9 +4,15 @@
 
   import { url_for } from "../../helpers.ts";
   import { router } from "../../router.ts";
-  import type { QbStatement } from "../api.ts";
+  import type { QbBalancePoint, QbStatement } from "../api.ts";
+  import DonutChart from "../charts/DonutChart.svelte";
+  import type { Slice } from "../charts/data.ts";
+  import { change_text, top_slices } from "../charts/data.ts";
+  import TrendChart from "../charts/TrendChart.svelte";
   import { iso, to_csv } from "../docs/periods.ts";
+  import { money } from "../format.ts";
   import AsOfPicker from "./AsOfPicker.svelte";
+  import ChartsPanel from "./ChartsPanel.svelte";
   import { download_csv } from "./download.ts";
   import {
     date_range_label,
@@ -20,9 +26,73 @@
 
   let {
     statement,
+    history,
     today,
     compare,
-  }: { statement: QbStatement; today: Date; compare: boolean } = $props();
+  }: {
+    statement: QbStatement;
+    history: QbBalancePoint[];
+    today: Date;
+    compare: boolean;
+  } = $props();
+
+  let currency = $derived(statement.currency);
+  let first = $derived(history[0]);
+  let last = $derived(history[history.length - 1]);
+  let since = $derived(
+    first
+      ? `since ${first.date.toLocaleDateString("en-US", { month: "short", year: "numeric", timeZone: "UTC" })}`
+      : "",
+  );
+  let cards = $derived(
+    last && first
+      ? [
+          {
+            label: "Total assets",
+            value: money(last.assets, currency),
+            change: change_text(last.assets, first.assets, since),
+            good: last.assets >= first.assets,
+          },
+          {
+            label: "Total liabilities",
+            value: money(last.liabilities, currency),
+            change: change_text(last.liabilities, first.liabilities, since),
+            good: last.liabilities <= first.liabilities,
+          },
+          {
+            label: "Net worth (equity)",
+            value: money(last.equity, currency),
+            change: change_text(last.equity, first.equity, since),
+            good: last.equity >= first.equity,
+          },
+        ]
+      : [],
+  );
+  let owe = $derived(
+    top_slices(
+      statement.blocks.find((b) => b.key === "liabilities")?.node ?? null,
+      0,
+    ),
+  );
+  let own = $derived(
+    top_slices(
+      statement.blocks.find((b) => b.key === "assets")?.node ?? null,
+      0,
+    ),
+  );
+  let side_slices = $derived(own.length ? own : owe);
+  const month = (d: Date) =>
+    d.toLocaleDateString("en-US", {
+      month: "short",
+      year: "2-digit",
+      timeZone: "UTC",
+    });
+
+  function show_as_of(date: Date) {
+    const url = new URL(window.location.href);
+    url.searchParams.set("as_of", iso(date));
+    router.navigate(url);
+  }
 
   const collapsed = new SvelteSet<string>();
   let as_of = $derived(statement.columns[0]?.end ?? today);
@@ -85,6 +155,62 @@
     collapse_all(statement.blocks.flatMap((b) => parents(b.node)));
   }}
 >
+  {#snippet charts()}
+    <ChartsPanel
+      kpis={cards}
+      trend_title="Assets, liabilities and net worth"
+      side_title={own.length ? "What you own" : "What you owe"}
+    >
+      {#snippet trend()}
+        <TrendChart
+          labels={history.map((p) => month(p.date))}
+          values={{
+            assets: history.map((p) => p.assets),
+            liabilities: history.map((p) => p.liabilities),
+            equity: history.map((p) => p.equity),
+          }}
+          series={[
+            { key: "assets", label: "Assets", color: "#10b981", kind: "bar" },
+            {
+              key: "liabilities",
+              label: "Liabilities",
+              color: "#ef4444",
+              kind: "bar",
+            },
+            {
+              key: "equity",
+              label: "Net worth",
+              color: "#2563eb",
+              kind: "line",
+            },
+          ]}
+          {currency}
+          onselect={(i: number) => {
+            const p = history[i];
+            if (p) {
+              show_as_of(p.date);
+            }
+          }}
+        />
+      {/snippet}
+      {#snippet side()}
+        {#if side_slices.length}
+          <DonutChart
+            slices={side_slices}
+            {currency}
+            title={own.length ? "What you own" : "What you owe"}
+            onselect={(s: Slice) => {
+              if (s.account) {
+                router.navigate(drill(s.account, 0));
+              }
+            }}
+          />
+        {:else}
+          <p class="muted">Nothing to show on this date.</p>
+        {/if}
+      {/snippet}
+    </ChartsPanel>
+  {/snippet}
   {#snippet options()}
     <AsOfPicker value={iso(as_of)} {today} />
     <label class="opt">
@@ -120,6 +246,10 @@
 </ReportFrame>
 
 <style>
+  .muted {
+    color: var(--qb-muted);
+  }
+
   .opt {
     display: flex;
     gap: 0.4rem;

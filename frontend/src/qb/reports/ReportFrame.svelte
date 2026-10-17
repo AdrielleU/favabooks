@@ -17,6 +17,7 @@
     onexport,
     onexpand,
     oncollapse,
+    charts,
     children,
   }: {
     company: string;
@@ -28,13 +29,38 @@
     onexport: () => void;
     onexpand?: () => void;
     oncollapse?: () => void;
+    /** KPI cards and charts shown above the report sheet. */
+    charts?: Snippet;
     children: Snippet;
   } = $props();
+
+  const KEY = "favabooks-report-charts";
+  function load(): boolean {
+    try {
+      return localStorage.getItem(KEY) !== "hidden";
+    } catch {
+      return true;
+    }
+  }
+  let show_charts = $state(load());
+  function toggle_charts() {
+    show_charts = !show_charts;
+    try {
+      localStorage.setItem(KEY, show_charts ? "shown" : "hidden");
+    } catch {
+      // Private mode: the choice just isn't remembered.
+    }
+  }
 </script>
 
 <div class="qb-card toolbar">
   <div class="options">{@render options()}</div>
   <div class="actions">
+    {#if charts}
+      <button type="button" class="link" onclick={toggle_charts}
+        >{show_charts ? "Hide charts" : "Show charts"}</button
+      >
+    {/if}
     {#if onexpand && oncollapse}
       <button type="button" class="link" onclick={oncollapse}>Collapse</button>
       <button type="button" class="link" onclick={onexpand}>Expand</button>
@@ -53,6 +79,10 @@
     </button>
   </div>
 </div>
+
+{#if charts && show_charts}
+  <div class="charts">{@render charts()}</div>
+{/if}
 
 <div class="qb-card sheet">
   <div class="sheet-head">
@@ -106,6 +136,11 @@
     font-weight: 600;
     color: var(--qb-accent);
     background: none;
+  }
+
+  .charts {
+    max-width: 64rem;
+    margin: 0 auto 1rem;
   }
 
   .sheet {
