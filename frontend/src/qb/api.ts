@@ -887,3 +887,48 @@ export const put_qb_account_nickname = async (body: {
   account: string;
   nickname: string;
 }): Promise<string> => qb_put("qb_account_nickname", body, string);
+
+// --- Currencies and prices ----------------------------------------------------
+
+const qb_price = object({
+  entry_hash: string,
+  date,
+  currency: string,
+  price: decimal,
+  quote: string,
+});
+
+const qb_prices = object({
+  home: string,
+  currencies: array(
+    object({
+      currency: string,
+      name: string,
+      postings: number,
+      last_used: optional(date),
+      latest: optional(qb_price),
+      previous: optional(qb_price),
+      needs_price: boolean,
+    }),
+  ),
+  prices: array(qb_price),
+});
+
+export type QbPrices = ValidationT<typeof qb_prices>;
+export type QbPrice = ValidationT<typeof qb_price>;
+
+/** Currencies used and every price. */
+export const get_qb_prices = async (): Promise<QbPrices> =>
+  qb_get("qb_prices", {}, qb_prices);
+
+/** Add a price. */
+export const put_qb_price = async (body: {
+  date: string;
+  currency: string;
+  price: string;
+  quote: string;
+}): Promise<string> => qb_put("qb_price", body, string);
+
+/** Delete a price. */
+export const delete_qb_price = async (entry_hash: string): Promise<string> =>
+  qb_delete("qb_price", { entry_hash }, string);

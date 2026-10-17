@@ -21,6 +21,8 @@
     series,
     currency,
     height = 260,
+    format,
+    zero = true,
     onselect,
   }: {
     labels: string[];
@@ -29,6 +31,10 @@
     series: Series[];
     currency: string;
     height?: number;
+    /** Number format for axis and tooltip (default: money). */
+    format?: (value: number) => string;
+    /** Start the axis at zero (off: zoom in on the values, for prices). */
+    zero?: boolean;
     onselect?: (index: number) => void;
   } = $props();
 
@@ -43,7 +49,11 @@
   let all = $derived(series.flatMap((s) => values[s.key] ?? []));
   let y = $derived(
     scaleLinear()
-      .domain([Math.min(0, ...all), Math.max(0, ...all)])
+      .domain(
+        zero
+          ? [Math.min(0, ...all), Math.max(0, ...all)]
+          : [Math.min(...all) * 0.98, Math.max(...all) * 1.02],
+      )
       .nice()
       .range([inner_h, 0]),
   );
@@ -86,7 +96,7 @@
         <g transform={`translate(0,${y(tick).toString()})`}>
           <line x2={inner_w} class:zero={tick === 0} class="grid" />
           <text x="-8" dy="0.32em" text-anchor="end"
-            >{money_short(tick, currency)}</text
+            >{format ? format(tick) : money_short(tick, currency)}</text
           >
         </g>
       {/each}
@@ -159,10 +169,9 @@
       <strong>{labels[at]}</strong>
       {#each series as s (s.key)}
         <span
-          ><i style:background={s.color}></i>{s.label}: {money(
-            values[s.key]?.[at] ?? 0,
-            currency,
-          )}</span
+          ><i style:background={s.color}></i>{s.label}: {format
+            ? format(values[s.key]?.[at] ?? 0)
+            : money(values[s.key]?.[at] ?? 0, currency)}</span
         >
       {/each}
       {#if onselect}<em>Click to see this period</em>{/if}

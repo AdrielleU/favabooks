@@ -49,6 +49,7 @@
       "balance_sheet",
       "trial_balance",
       "holdings",
+      "qb_prices",
       "commodities",
       "events",
       "statistics",
@@ -275,7 +276,7 @@
     <QbLink report="balance_sheet" name="Fava balance sheet" />
     <QbLink report="trial_balance" name="Fava trial balance" />
     <QbLink report="holdings" name={_("Holdings")} key="g h" />
-    <QbLink report="commodities" name={_("Commodities")} key="g c" />
+    <QbLink report="qb_prices" name="Currencies & prices" key="g c" />
     <QbLink
       report="events"
       name={_("Events")}
