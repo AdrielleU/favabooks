@@ -3,6 +3,7 @@
   import type { QbDashboard } from "../api.ts";
   import { change, money, money_short, short_date } from "../format.ts";
   import Icon from "../Icon.svelte";
+  import { account_label } from "../nicknames.ts";
 
   let { data }: { data: QbDashboard } = $props();
 
@@ -109,8 +110,11 @@
         {#each data.balances as row (row.account)}
           <li>
             <span class="acct-icon"><Icon name="landmark" size={16} /></span>
-            <a href={$url_for("qb_register/", { account_name: row.account })}>
-              {leaf(row.account)}
+            <a
+              href={$url_for("qb_register/", { account_name: row.account })}
+              title={row.account}
+            >
+              {$account_label(row.account)}
             </a>
             <span class="amount" class:negative={row.amount < 0}>
               {money(row.amount, cur)}

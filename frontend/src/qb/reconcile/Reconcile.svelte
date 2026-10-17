@@ -10,6 +10,7 @@
   import { put_qb_reconcile } from "../api.ts";
   import { money, short_date } from "../format.ts";
   import Icon from "../Icon.svelte";
+  import { account_option } from "../nicknames.ts";
   import {
     cents,
     cents_string,
@@ -156,7 +157,7 @@
       >
         {#if !account_name}<option value="">Choose an account…</option>{/if}
         {#each accounts as a (a.account)}
-          <option value={a.account}>{a.account}</option>
+          <option value={a.account}>{$account_option(a.account)}</option>
         {/each}
       </select>
     </label>

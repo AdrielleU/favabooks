@@ -8,6 +8,7 @@ Close directives, so the ledger stays plain Beancount.
 from __future__ import annotations
 
 import datetime
+import re
 from collections import Counter
 from collections import defaultdict
 from decimal import Decimal
@@ -17,7 +18,9 @@ from beancount.core.account import is_valid
 from msgspec import Struct
 
 from fava.beans import create
+from fava.beans.funcs import hash_entry
 from fava.context import g
+from fava.core.file import get_entry_slice
 from fava.core.file import insert_entry
 from fava.json_api import api_endpoint
 from fava.json_api import ValidationError
@@ -45,6 +48,9 @@ class QbChartAccount(Struct, frozen=True):
     open_date: datetime.date | None
     close_date: datetime.date | None
     last_date: datetime.date | None
+    #: A friendlier label ("Chase Ink Business"), from `nickname:` on the
+    #: account's Open directive.
+    nickname: str = ""
 
 
 class QbChart(Struct, frozen=True):
@@ -113,6 +119,7 @@ def get_qb_chart() -> QbChart:
                 open_date=opened.get(name),
                 close_date=details.close_date,
                 last_date=last.get(name),
+                nickname=nicknames().get(name, ""),
             )
         )
     return QbChart(amounts.currency, accounts, roots, year_start)
@@ -142,6 +149,61 @@ def _insert_with_accounts(entry: Directive) -> None:
     )
     ledger.watcher.notify(path)
     ledger.extensions.after_insert_entry(entry)
+
+
+NICKNAME_KEY = "nickname"
+#: Longest nickname (it is shown in narrow columns).
+NICKNAME_MAX = 60
+
+
+def nicknames() -> dict[str, str]:
+    """Account nicknames from `nickname:` metadata on Open directives."""
+    return {
+        o.account: str(o.meta[NICKNAME_KEY]).strip()
+        for o in g.ledger.all_entries_by_type.Open
+        if o.meta and str(o.meta.get(NICKNAME_KEY, "")).strip()
+    }
+
+
+@api_endpoint
+def get_qb_nicknames() -> dict[str, str]:
+    """Account nicknames, for labelling accounts on every page."""
+    g.ledger.changed()
+    return nicknames()
+
+
+@api_endpoint
+def put_qb_account_nickname(account: str, nickname: str) -> str:
+    """Set (or with "" remove) an account's nickname on its Open line."""
+    ledger = g.ledger
+    ledger.changed()
+    label = " ".join(nickname.split())
+    if len(label) > NICKNAME_MAX:
+        msg = f"keep the nickname under {NICKNAME_MAX} characters"
+        raise ValidationError(msg)
+    entry = next(
+        (o for o in ledger.all_entries_by_type.Open if o.account == account),
+        None,
+    )
+    if entry is None:
+        msg = f"unknown account '{account}'"
+        raise ValidationError(msg)
+    source, sha256sum = get_entry_slice(entry)
+    header, *rest = source.split("\n")
+    rest = [
+        line for line in rest if not re.match(rf"\s+{NICKNAME_KEY}\s*:", line)
+    ]
+    if label:
+        escaped = label.replace("\\", "\\\\").replace('"', '\\"')
+        rest.insert(0, f'  {NICKNAME_KEY}: "{escaped}"')
+    ledger.file.save_entry_slice(
+        hash_entry(entry), "\n".join([header, *rest]), sha256sum
+    )
+    return (
+        f"{account} is now called {label}."
+        if label
+        else f"Removed the nickname of {account}."
+    )
 
 
 def _date(value: str, label: str) -> datetime.date:

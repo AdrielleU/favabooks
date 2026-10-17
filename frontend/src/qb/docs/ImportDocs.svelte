@@ -11,6 +11,7 @@
   import type { QbDocPreview } from "../api.ts";
   import { put_qb_doc_csv_import, put_qb_doc_csv_preview } from "../api.ts";
   import { money, short_date } from "../format.ts";
+  import { account_option } from "../nicknames.ts";
   import { csv_fields } from "./helpers.ts";
   import type { SideText } from "./sides.ts";
 
@@ -244,7 +245,7 @@
             >
             <select bind:value={payment_account} disabled={!record_payments}>
               {#each money_accounts as a (a)}
-                <option value={a}>{a}</option>
+                <option value={a}>{$account_option(a)}</option>
               {/each}
             </select>
           </label>

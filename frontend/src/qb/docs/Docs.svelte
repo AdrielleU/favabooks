@@ -9,6 +9,7 @@
   import type { QbDoc, QbDocs } from "../api.ts";
   import { money, short_date } from "../format.ts";
   import Icon from "../Icon.svelte";
+  import { account_label } from "../nicknames.ts";
   import { leaf } from "../transactions/helpers.ts";
   import {
     days_between,
@@ -144,8 +145,6 @@
   let parties = $derived([...new Set(data.docs.map((d) => d.party))]);
   let a_doc = $derived(text.side === "invoice" ? "an invoice" : "a bill");
   let is_bill = $derived(text.side === "bill");
-  /** "Liabilities:CreditCard:Card-8360" -> "Card-8360". */
-  const last = (account: string) => account.split(":").pop() ?? account;
 
   function go(params: Record<string, string>) {
     const url = new URL(window.location.href);
@@ -415,7 +414,7 @@
               {#if d.paid_date && d.status === "paid"}
                 <span class="muted sub paid-with" title={d.paid_with.join(", ")}
                   >{short_date(d.paid_date)}{d.paid_with.length
-                    ? ` ${text.paid_with_label} ${d.paid_with.map(last).join(", ")}`
+                    ? ` ${text.paid_with_label} ${d.paid_with.map((a) => $account_label(a)).join(", ")}`
                     : ""}</span
                 >
               {/if}

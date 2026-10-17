@@ -7,6 +7,7 @@
   import type { QbAccountOverview, QbRegister, QbRegisterRow } from "../api.ts";
   import { put_qb_reclassify } from "../api.ts";
   import { money, short_date } from "../format.ts";
+  import { account_label, account_option } from "../nicknames.ts";
 
   let {
     account_name,
@@ -33,7 +34,6 @@
     router.navigate(url);
   }
 
-  const leaf = (account: string) => account.split(":").slice(1).join(":");
   let overview = $derived(accounts.find((a) => a.account === account_name));
   let options = $derived(
     accounts.some((a) => a.account === account_name) || !account_name
@@ -91,7 +91,7 @@
         }}
       >
         {#each options as option (option)}
-          <option value={option}>{option}</option>
+          <option value={option}>{$account_option(option)}</option>
         {/each}
       </select>
     </label>
@@ -230,7 +230,7 @@
           class="qb-card acct"
           href={$url_for("qb_register/", { account_name: a.account })}
         >
-          <span class="acct-name">{leaf(a.account)}</span>
+          <span class="acct-name">{$account_label(a.account)}</span>
           <span class="muted">{a.account}</span>
           {#if a.account.startsWith("Liabilities")}
             <strong>{money(-a.balance, a.currency)}</strong>

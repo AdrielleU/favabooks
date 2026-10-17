@@ -7,9 +7,10 @@
   import { notify, notify_err } from "../../notifications.ts";
   import { router } from "../../router.ts";
   import type { QbChart, QbChartAccount } from "../api.ts";
-  import { put_qb_account_close } from "../api.ts";
+  import { put_qb_account_close, put_qb_account_nickname } from "../api.ts";
   import { money, short_date } from "../format.ts";
   import Icon from "../Icon.svelte";
+  import { refresh_nicknames } from "../nicknames.ts";
   import { path_parts, type_rank } from "./helpers.ts";
   import NewAccount from "./NewAccount.svelte";
 
@@ -30,6 +31,36 @@
   let closing = $state<QbChartAccount | null>(null);
   let close_date = $state("");
   let busy = $state(false);
+  let renaming = $state<QbChartAccount | null>(null);
+  let nickname = $state("");
+
+  function start_rename(a: QbChartAccount) {
+    closing = null;
+    renaming = a;
+    nickname = a.nickname;
+  }
+
+  async function rename(value: string) {
+    if (!renaming) {
+      return;
+    }
+    busy = true;
+    try {
+      notify(
+        await put_qb_account_nickname({
+          account: renaming.account,
+          nickname: value,
+        }),
+      );
+      renaming = null;
+      await refresh_nicknames();
+      router.reload();
+    } catch (error) {
+      notify_err(error);
+    } finally {
+      busy = false;
+    }
+  }
 
   let roots = $derived(chart.roots);
   let year = $derived(chart.year_start.getUTCFullYear());
@@ -81,6 +112,7 @@
     [roots.assets, roots.liabilities].includes(root_of(a.account));
 
   function start_close(a: QbChartAccount) {
+    renaming = null;
     closing = a;
     close_date = new Date().toISOString().slice(0, 10);
   }
@@ -175,9 +207,10 @@
                   style:padding-left={nested ? "1.1rem" : "0"}
                 >
                   <strong
-                    >{nested
-                      ? (parts[parts.length - 1] ?? a.account)
-                      : parts.join(": ")}</strong
+                    >{a.nickname ||
+                      (nested
+                        ? (parts[parts.length - 1] ?? a.account)
+                        : parts.join(": "))}</strong
                   >
                 </span>
                 <span class="muted sub">{a.account}</span>
@@ -211,6 +244,14 @@
                   title="Fava's account page with charts and balances"
                   >Details</a
                 >
+                <button
+                  type="button"
+                  class="link"
+                  title="Give this account a friendlier name"
+                  onclick={() => {
+                    start_rename(a);
+                  }}>Rename</button
+                >
                 {#if a.close_date === null}
                   <button
                     type="button"
@@ -229,6 +270,51 @@
   </div>
 {:else}
   <p class="qb-card muted">No accounts match.</p>
+{/if}
+
+{#if renaming}
+  <form
+    class="qb-card confirm rename"
+    onsubmit={async (e) => {
+      e.preventDefault();
+      await rename(nickname);
+    }}
+  >
+    <p>
+      A nickname for <strong>{renaming.account}</strong>, shown on Favabooks
+      pages instead of the account name. The account itself doesn't change.
+    </p>
+    <label>
+      Nickname
+      <input
+        bind:value={nickname}
+        maxlength="60"
+        placeholder="e.g. Chase Ink Business"
+      />
+    </label>
+    <div class="confirm-actions">
+      {#if renaming.nickname}
+        <button
+          type="button"
+          class="qb-secondary"
+          disabled={busy}
+          onclick={async () => rename("")}>Remove nickname</button
+        >
+      {/if}
+      <button
+        type="button"
+        class="qb-secondary"
+        onclick={() => (renaming = null)}>Cancel</button
+      >
+      <button
+        type="submit"
+        class="qb-primary"
+        disabled={busy || !nickname.trim()}
+      >
+        Save
+      </button>
+    </div>
+  </form>
 {/if}
 
 {#if closing}
@@ -463,6 +549,10 @@
     align-items: center;
     margin-top: 1rem;
     border: 1px solid var(--warning);
+  }
+
+  .rename {
+    border-color: var(--qb-accent);
   }
 
   .confirm p {

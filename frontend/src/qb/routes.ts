@@ -9,6 +9,7 @@ import {
   qb_vendors,
 } from "./docs/index.ts";
 import { qb_exports } from "./exports/index.ts";
+import { start_nicknames } from "./nicknames.ts";
 import { qb_reclassify } from "./reclassify/index.ts";
 import { qb_reconcile } from "./reconcile/index.ts";
 import { qb_register } from "./register/index.ts";
@@ -45,3 +46,5 @@ export const qb_routes: FrontendRoute[] = [
   qb_bills,
   ...wip_routes,
 ];
+
+start_nicknames();

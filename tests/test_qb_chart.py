@@ -189,3 +189,38 @@ def test_first_account(tmp_path: Path) -> None:
     )
     assert response.status_code == HTTPStatus.OK.value, response.get_json()
     assert "open Assets:Cash" in main.read_text()
+
+
+def test_nicknames(client: FlaskClient, tmp_path: Path) -> None:
+    def nick(account: str, nickname: str) -> tuple[int, Any]:
+        return call(
+            client,
+            "put",
+            "qb_account_nickname",
+            account=account,
+            nickname=nickname,
+        )
+
+    status, data = nick("Liabilities:CreditCard:Visa", "  Chase   Ink  ")
+    assert status == HTTPStatus.OK.value, data
+    assert data == "Liabilities:CreditCard:Visa is now called Chase Ink."
+    assert (
+        chart(client)["Liabilities:CreditCard:Visa"]["nickname"] == "Chase Ink"
+    )
+    # Replacing keeps one nickname line; quotes are escaped.
+    nick("Liabilities:CreditCard:Visa", 'Amex "Gold"')
+    text = (tmp_path / "chart.beancount").read_text()
+    assert text.count("nickname:") == 1
+    assert 'nickname: "Amex \\"Gold\\""' in text
+    status, data = call(client, "get", "qb_nicknames")
+    assert data == {"Liabilities:CreditCard:Visa": 'Amex "Gold"'}
+    status, data = nick("Liabilities:CreditCard:Visa", "")
+    assert data == "Removed the nickname of Liabilities:CreditCard:Visa."
+    assert "nickname" not in (tmp_path / "chart.beancount").read_text()
+    assert call(client, "get", "qb_nicknames")[1] == {}
+
+    status, data = nick("Assets:Nope", "x")
+    assert status == HTTPStatus.BAD_REQUEST.value
+    assert "unknown account" in data["detail"]
+    status, data = nick("Assets:Bank:Checking", "x" * 61)
+    assert "under 60" in data["detail"]

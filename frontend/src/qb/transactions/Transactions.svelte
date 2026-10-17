@@ -12,6 +12,7 @@
   import SortHeader from "../docs/SortHeader.svelte";
   import { money, short_date } from "../format.ts";
   import Icon from "../Icon.svelte";
+  import { account_label } from "../nicknames.ts";
   import { KIND_TABS, kind_label, leaf, totals } from "./helpers.ts";
   import type { TransactionsProps } from "./index.ts";
 
@@ -224,7 +225,7 @@
                 <a
                   class="cell-line plain"
                   href={$url_for("qb_register/", { account_name: a })}
-                  title="Open register for {a}">{leaf(a)}</a
+                  title="Open register for {a}">{$account_label(a)}</a
                 >
               {:else}
                 <span class="muted">—</span>

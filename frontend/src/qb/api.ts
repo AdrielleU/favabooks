@@ -851,6 +851,7 @@ const qb_chart = object({
       open_date: optional(date),
       close_date: optional(date),
       last_date: optional(date),
+      nickname: string,
     }),
   ),
   roots: record(string),
@@ -876,3 +877,13 @@ export const put_qb_account_close = async (body: {
   account: string;
   date: string;
 }): Promise<string> => qb_put("qb_account_close", body, string);
+
+/** Account nicknames (from `nickname:` on Open directives). */
+export const get_qb_nicknames = async (): Promise<Record<string, string>> =>
+  qb_get("qb_nicknames", {}, record(string));
+
+/** Set (or with "" remove) an account's nickname. */
+export const put_qb_account_nickname = async (body: {
+  account: string;
+  nickname: string;
+}): Promise<string> => qb_put("qb_account_nickname", body, string);
