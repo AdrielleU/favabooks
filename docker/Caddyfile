@@ -1,0 +1,19 @@
+# Caddy in front of Favabooks (docker-compose-login.yml): asks for a
+# username and password, then passes everything through to Favabooks.
+# Fava has no login of its own.
+#
+# The login comes from the environment (the .env file next to the compose
+# file): FAVABOOKS_LOGIN_USER and FAVABOOKS_LOGIN_HASH, a bcrypt hash made
+# by `caddy hash-password`. Without them Caddy doesn't start, so Favabooks
+# is never served without the login.
+{
+	admin off
+	auto_https off
+}
+
+:80 {
+	basic_auth {
+		{$FAVABOOKS_LOGIN_USER} {$FAVABOOKS_LOGIN_HASH}
+	}
+	reverse_proxy favabooks:5000
+}

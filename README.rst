@@ -96,6 +96,27 @@ Fava has no login, so the compose file only listens on this computer. Before
 opening it to a network, put it behind a reverse proxy with a login;
 ``docker/compose.yaml`` is a production setup (git auto-commit, proxy port).
 
+With a login
+~~~~~~~~~~~~
+
+``docker-compose-login.yml`` puts Caddy in front of Favabooks: everyone
+signs in with a username and password before seeing the books, and only
+Caddy's port is open. Make a password hash, put the login in ``.env`` next
+to the compose file, and start it:
+
+.. code-block:: bash
+
+    docker run --rm -it caddy:2.11.7-alpine caddy hash-password   # asks twice
+    cat > .env <<'END'
+    FAVABOOKS_LOGIN_USER=me
+    FAVABOOKS_LOGIN_HASH='$2a$14$...the hash...'
+    END
+    docker compose -f docker-compose-login.yml up -d
+
+Without the login in ``.env`` it refuses to start. It's one shared login
+over plain HTTP: fine on a home network, but use a VPN (Tailscale,
+WireGuard) or HTTPS to reach it from outside.
+
 Several companies, or personal money
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

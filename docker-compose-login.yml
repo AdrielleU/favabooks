@@ -1,0 +1,73 @@
+# Favabooks with a login: Caddy in front asks for a username and password
+# before anyone sees the books. Favabooks itself isn't published; only
+# Caddy's port is. Otherwise the same as docker-compose.yml (use one or the
+# other, not both).
+#
+#   mkdir books
+#   # Make the password hash (asks for the password twice):
+#   docker run --rm -it caddy:2.11.7-alpine caddy hash-password
+#   # Put the login in a file named .env next to this one. Single quotes
+#   # around the hash: it's full of $ signs.
+#   #   FAVABOOKS_LOGIN_USER=me
+#   #   FAVABOOKS_LOGIN_HASH='$2a$14$...'
+#   docker compose -f docker-compose-login.yml up -d
+#   # open http://<this computer>:5000 and sign in
+#
+# Change the password: make a new hash, edit .env, then
+#   docker compose -f docker-compose-login.yml up -d
+#
+# The login is plain HTTP: fine on your home network, but the password
+# crosses it unencrypted. From outside, use a VPN (Tailscale, WireGuard),
+# or give Caddy a domain name so it fetches an HTTPS certificate.
+services:
+  favabooks:
+    image: ghcr.io/adrielleu/favabooks:${FAVABOOKS_TAG:-latest}
+    container_name: favabooks
+    restart: unless-stopped
+    environment:
+      # Your company name, used when the first company's books are created
+      FAVABOOKS_COMPANY: "${FAVABOOKS_COMPANY:-My Company LLC}"
+      # What to create on first run: blank, demo or none
+      FAVABOOKS_STARTER: "${FAVABOOKS_STARTER:-blank}"
+      # Space-separated main.beancount files, one per company. To add
+      # another LLC or personal books, list another file in its own folder
+      # and run "docker compose up -d"; missing books are created, named
+      # after the folder (second-llc -> "Second LLC"; a folder named
+      # personal, household or family gets personal accounts):
+      #   LEDGERS: "/books/main.beancount /books/second-llc/main.beancount /books/personal/main.beancount"
+      # Switch company from the name at the top left of Favabooks.
+      LEDGERS: "/books/main.beancount"
+      # Where ./books is on this computer, so Favabooks can show you the
+      # inbox folder to put files in (set by the shell on Mac and Linux)
+      FAVABOOKS_HOST_BOOKS: "${PWD:-}/books"
+      # Bank & card account settings and import scripts live here
+      PYTHONPATH: "/books/importers"
+      # Who saves from the UI are recorded as, if ./books is a git repo
+      GIT_AUTHOR_NAME: "favabooks"
+      GIT_AUTHOR_EMAIL: "favabooks@localhost"
+      GIT_COMMITTER_NAME: "favabooks"
+      GIT_COMMITTER_EMAIL: "favabooks@localhost"
+    # The container runs as user 1000. If your user id differs, either
+    # chown ./books to 1000 or uncomment this (Linux):
+    # user: "${UID:-1000}:${GID:-1000}"
+    # Podman with SELinux (Fedora, RHEL): add ":Z" to both volumes
+    # (./books:/books:Z and Caddyfile:ro,Z) or they can't be read.
+    volumes:
+      - ./books:/books
+    # Not published: only Caddy (below) can reach it.
+
+  login:
+    image: caddy:2.11.7-alpine
+    container_name: favabooks-login
+    restart: unless-stopped
+    depends_on:
+      - favabooks
+    environment:
+      FAVABOOKS_LOGIN_USER: "${FAVABOOKS_LOGIN_USER:?set FAVABOOKS_LOGIN_USER in .env}"
+      FAVABOOKS_LOGIN_HASH: "${FAVABOOKS_LOGIN_HASH:?set FAVABOOKS_LOGIN_HASH in .env (caddy hash-password)}"
+    volumes:
+      - ./docker/Caddyfile:/etc/caddy/Caddyfile:ro
+    ports:
+      # Every computer on your network can reach the login page. This
+      # computer only: "127.0.0.1:${FAVABOOKS_PORT:-5000}:80".
+      - "${FAVABOOKS_PORT:-5000}:80"
