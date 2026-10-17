@@ -1029,3 +1029,21 @@ export const put_qb_close = async (body: {
 /** Reopen the books (remove the latest close). */
 export const delete_qb_close = async (): Promise<string> =>
   qb_delete("qb_close", {}, string);
+
+// --- Inbox ----------------------------------------------------------------------
+
+const qb_inbox = object({
+  inbox: optional(string),
+  relative: optional(string),
+  docker: boolean,
+  files: array(string),
+  file_count: number,
+  documents: number,
+  transactions: number,
+});
+
+export type QbInbox = ValidationT<typeof qb_inbox>;
+
+/** The inbox folder, the files waiting there, and how many documents. */
+export const get_qb_inbox = async (): Promise<QbInbox> =>
+  qb_get("qb_inbox", {}, qb_inbox);

@@ -1,0 +1,5 @@
+{
+  "permissions": {
+    "allow": ["Bash(@RUN@bean-check:*)", "Bash(@RUN@python -m fava.qb_inbox:*)"]
+  }
+}

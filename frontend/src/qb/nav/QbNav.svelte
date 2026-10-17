@@ -14,6 +14,7 @@
   import { errors, extensions, ledger_data } from "../../stores/index.ts";
   import { pathname } from "../../stores/url.ts";
   import Icon from "../Icon.svelte";
+  import { inbox_help_open } from "../inbox/help.ts";
   import QbGroup from "./QbGroup.svelte";
   import QbLink from "./QbLink.svelte";
 
@@ -119,6 +120,12 @@
       <a href="#add-transaction">
         <Icon name="arrow-left-right" />Transaction or expense
       </a>
+      <button
+        type="button"
+        onclick={() => {
+          inbox_help_open.set(true);
+        }}><Icon name="folder" />Add files to the inbox</button
+      >
       <a href={$url_for("import/")}><Icon name="upload" />Import bank file</a>
       <a href={$url_for("qb_review/")}><Icon name="inbox" />Review imports</a>
       <a href={$url_for("qb_banks/")}
@@ -375,17 +382,23 @@
     box-shadow: var(--qb-shadow-lg);
   }
 
-  .new-menu a {
+  .new-menu a,
+  .new-menu button {
     display: flex;
     gap: 0.6rem;
     align-items: center;
+    width: 100%;
     padding: 0.5rem 0.6rem;
     font-size: 0.9rem;
     color: var(--text-color);
+    text-align: left;
+    background: none;
+    border: 0;
     border-radius: 6px;
   }
 
-  .new-menu a:hover {
+  .new-menu a:hover,
+  .new-menu button:hover {
     background: var(--background-darker);
   }
 

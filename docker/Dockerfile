@@ -30,13 +30,15 @@ RUN useradd --create-home --uid 1000 fava \
 COPY ledger-starter /opt/favabooks/ledger-starter
 COPY ledger-personal /opt/favabooks/ledger-personal
 COPY ledger-template /opt/favabooks/ledger-template
+COPY ledger-ai /opt/favabooks/ledger-ai
 COPY docker/entrypoint.sh /usr/local/bin/favabooks-entrypoint
 COPY docker/new-books.sh /usr/local/bin/favabooks-new
 USER fava
 RUN git config --global --add safe.directory '*'
 WORKDIR /books
 ENV FAVA_HOST=0.0.0.0 \
-    FAVA_PORT=5000
+    FAVA_PORT=5000 \
+    FAVABOOKS_DOCKER=1
 EXPOSE 5000
 # fava runs as PID 1 and has no SIGTERM handler; SIGINT stops it cleanly.
 STOPSIGNAL SIGINT

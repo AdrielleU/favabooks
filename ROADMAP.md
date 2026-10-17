@@ -88,8 +88,12 @@ Each needs an account convention, a check or a report:
 
 ## Later
 
-- [ ] Receipt and invoice intake: read PDFs and photos, propose an entry, file
-  the document
+- [x] Several companies (and personal books) in one Favabooks
+- [x] AI assistant intake: AGENTS.md and ai/ tasks (import the inbox, file
+  receipts, month-end) in new books, with a Claude Code adapter; an "Add your
+  files" popup with directions
+- [ ] Receipt and invoice intake inside Favabooks: read PDFs and photos, propose
+  an entry, file the document
 - [ ] Payroll provider journal import
 
 ## Housekeeping

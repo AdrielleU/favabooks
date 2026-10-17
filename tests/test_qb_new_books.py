@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import json
 import os
+import re
 import shutil
 import subprocess
 from pathlib import Path
@@ -194,3 +196,82 @@ def test_entrypoint_errors(
     assert done.returncode == 1, done.stdout
     assert message.format(t=t) in done.stderr
     assert "fava" not in done.stdout
+
+
+def test_ai_files(tmp_path: Path) -> None:
+    """New books get AGENTS.md, ai/ and .claude/, commands filled in."""
+    books = tmp_path / "my books" / "acme-llc"
+    done = run(tmp_path, "new-books.sh", str(books))
+    assert done.returncode == 0, done.stderr
+    agents = (books / "AGENTS.md").read_text()
+    assert (books / "CLAUDE.md").read_text().endswith("\n@AGENTS.md\n")
+    main = books / "main.beancount"
+    assert f'uv run --project {ROOT} bean-check "{main}"' in agents
+    assert f"source checkout at `{ROOT}`" in agents
+    for name in ("import-inbox", "file-receipts", "month-end"):
+        assert (books / "ai" / f"{name}.md").exists()
+        command = books / ".claude" / "commands" / f"{name}.md"
+        assert f"Follow ai/{name}.md." in command.read_text()
+    settings = json.loads((books / ".claude" / "settings.json").read_text())
+    assert settings["permissions"]["allow"] == [
+        f"Bash(uv run --project {ROOT} bean-check:*)",
+        f"Bash(uv run --project {ROOT} python -m fava.qb_inbox:*)",
+    ]
+    for text in (agents, json.dumps(settings)):
+        assert not re.search(r"@[A-Z_]+@", text)
+
+
+def test_ai_files_in_docker(tmp_path: Path) -> None:
+    done = run(
+        tmp_path,
+        "new-books.sh",
+        str(tmp_path / "b"),
+        FAVABOOKS_DOCKER="1",
+        FAVABOOKS_CONTAINER="books-acme",
+    )
+    assert done.returncode == 0, done.stderr
+    agents = (tmp_path / "b" / "AGENTS.md").read_text()
+    assert (
+        f"docker exec books-acme bean-check {tmp_path}/b/main.beancount"
+        in (agents)
+    )
+    assert "named `books-acme`" in agents
+
+
+def test_ai_files_installed_fava(tmp_path: Path) -> None:
+    """Starters without a checkout around them: fava is on the PATH."""
+    starters = tmp_path / "starters"
+    starters.mkdir()
+    (starters / "ledger-starter").symlink_to(ROOT / "ledger-starter")
+    (starters / "ledger-ai").symlink_to(ROOT / "ledger-ai")
+    done = run(
+        tmp_path,
+        "new-books.sh",
+        str(tmp_path / "b"),
+        FAVABOOKS_STARTERS=str(starters),
+    )
+    assert done.returncode == 0, done.stderr
+    agents = (tmp_path / "b" / "AGENTS.md").read_text()
+    assert f"- Check the books: `bean-check {tmp_path}/b/main.beancount`" in (
+        agents
+    )
+
+
+def test_add_ai_files(tmp_path: Path) -> None:
+    books = tmp_path / "old"
+    books.mkdir()
+    (books / "main.beancount").write_text("")
+    (books / "CLAUDE.md").write_text("mine\n")
+    done = run(tmp_path, "new-books.sh", "--ai", str(books))
+    assert done.returncode == 0, done.stderr
+    assert f"Kept the existing {books}/CLAUDE.md." in done.stdout
+    assert done.stdout.endswith(
+        f"Added AI assistant instructions to {books}.\n"
+    )
+    assert (books / "CLAUDE.md").read_text() == "mine\n"
+    assert (books / "AGENTS.md").exists()
+
+    done = run(tmp_path, "new-books.sh", "--ai", str(tmp_path / "none"))
+    assert "no books at" in done.stderr
+    done = run(tmp_path, "new-books.sh", "--ai", "a", "b")
+    assert "usage: new-books.sh --ai FOLDER" in done.stderr

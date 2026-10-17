@@ -28,6 +28,9 @@ services:
       #   LEDGERS: "/books/main.beancount /books/second-llc/main.beancount /books/personal/main.beancount"
       # Switch company from the name at the top left of Favabooks.
       LEDGERS: "/books/main.beancount"
+      # Where ./books is on this computer, so Favabooks can show you the
+      # inbox folder to put files in (set by the shell on Mac and Linux)
+      FAVABOOKS_HOST_BOOKS: "${PWD:-}/books"
       # Bank & card account settings and import scripts live here
       PYTHONPATH: "/books/importers"
       # Who saves from the UI are recorded as, if ./books is a git repo

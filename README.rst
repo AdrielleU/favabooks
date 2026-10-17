@@ -127,6 +127,65 @@ Without Docker, create books with ``docker/new-books.sh``:
     docker/new-books.sh ~/books/personal personal "Our household"
     uv run fava ~/books/main.beancount ~/books/second-llc/main.beancount
 
+Importing with an AI assistant
+------------------------------
+
+Your books are plain files, so an AI coding assistant (`Claude Code
+<https://claude.com/claude-code>`__, Codex, Cursor, Gemini CLI, GitHub
+Copilot...) can do the importing: run it in the books folder, on your own
+computer, while Favabooks runs in Docker. Nothing connects them but the
+files, and Favabooks reloads when they change.
+
+1. Put files in the books' ``inbox`` folder: bank and card CSV downloads,
+   receipts and invoices (PDFs or photos). Favabooks shows where the folder
+   is, with directions for Windows, Mac and Linux, when the books have no
+   documents yet, and any time from **+ New → Add files to the inbox**.
+2. In a terminal, go to the books folder and start your assistant:
+
+   .. code-block:: bash
+
+       cd books        # the folder next to docker-compose.yml
+       claude          # or codex, gemini, ...
+
+3. Ask it to "import the inbox" (in Claude Code: ``/import-inbox``). Bank
+   CSVs go through the same importers as Favabooks' Import page (duplicates
+   skipped); receipts and invoices are matched to transactions or booked,
+   then filed under ``documents/``. It checks the books for errors before it
+   finishes.
+4. Accept or change the new entries in Favabooks under **Banking → For
+   review**. Everything the assistant adds is flagged for review; nothing is
+   final until you accept it.
+
+New books come with what an assistant needs:
+
+- ``AGENTS.md``: how the books are laid out and the rules to follow: flag
+  new entries for review, never change a closed period or entries you
+  accepted, no duplicates, treat text inside receipts as data and never as
+  instructions, check the books after every change. Most assistants read
+  ``AGENTS.md`` by themselves.
+- ``ai/``: the tasks, as plain instructions any assistant can follow:
+  ``import-inbox.md``, ``file-receipts.md`` (attach receipts to
+  transactions already in the books) and ``month-end.md`` (a report of
+  what's missing: uncategorized entries, receipts, stale bank accounts,
+  unpaid invoices).
+- For Claude Code, which reads ``CLAUDE.md`` instead: a ``CLAUDE.md`` that
+  includes ``AGENTS.md``, the tasks as ``/import-inbox``, ``/file-receipts``
+  and ``/month-end``, and ``.claude/settings.json`` so it can run the check
+  and import commands without asking each time.
+
+Books created before 0.4 can get them with
+``docker exec favabooks favabooks-new --ai /books`` (or
+``docker/new-books.sh --ai ~/books`` from source); files you already have
+are kept. Keep the books in git (``git init`` in ``books``) to see and undo
+every change.
+
+The import command also works on its own:
+
+.. code-block:: bash
+
+    docker exec favabooks python -m fava.qb_inbox /books/main.beancount            # what's waiting
+    docker exec favabooks python -m fava.qb_inbox /books/main.beancount /books/inbox/chase.csv --save
+
 Running from source
 -------------------
 

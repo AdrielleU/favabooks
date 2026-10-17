@@ -36,26 +36,27 @@ if TYPE_CHECKING:  # pragma: no cover
     from collections.abc import Iterable
 
     from fava.beans.abc import Directive
+    from fava.core import FavaLedger
 
 CLOSE_TYPE = "closed-books"
 META_KEY = "closed-books"
 DAY = datetime.timedelta(days=1)
 
 
-def _closes() -> list[Directive]:
+def _closes(ledger: FavaLedger | None = None) -> list[Directive]:
     return sorted(
         (
             c
-            for c in g.ledger.all_entries_by_type.Custom
+            for c in (ledger or g.ledger).all_entries_by_type.Custom
             if c.type == CLOSE_TYPE
         ),
         key=lambda c: c.date,
     )
 
 
-def closed_through() -> datetime.date | None:
+def closed_through(ledger: FavaLedger | None = None) -> datetime.date | None:
     """The latest closing date, or None if the books were never closed."""
-    closes = _closes()
+    closes = _closes(ledger)
     return closes[-1].date if closes else None
 
 

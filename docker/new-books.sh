@@ -2,6 +2,7 @@
 # Create new Favabooks books for a company (or personal money).
 #
 #   new-books.sh FOLDER [KIND] [NAME]
+#   new-books.sh --ai FOLDER
 #
 #   FOLDER  where the books go; FOLDER/main.beancount is created. A path
 #           ending in .beancount names the main file instead.
@@ -12,9 +13,15 @@
 #   NAME    the title shown in Favabooks; default: from the folder name,
 #           e.g. second-llc -> "Second LLC"
 #
+# New books come with instructions for AI assistants: AGENTS.md (read by
+# Codex, Cursor, Copilot, Gemini CLI and others), the tasks in ai/, and a
+# small adapter for Claude Code (CLAUDE.md, .claude/). --ai adds just those
+# to existing books, leaving any file that's already there alone.
+#
 # Examples (in Docker the script is called favabooks-new):
 #   new-books.sh ~/books/second-llc
 #   new-books.sh ~/books/personal personal "Our household"
+#   new-books.sh --ai ~/books/old-llc
 #
 # It never overwrites anything: it stops with an error if the folder
 # already has books in it.
@@ -25,6 +32,12 @@ fail() {
   exit 1
 }
 
+ai_only=0
+if [ "${1:-}" = --ai ]; then
+  ai_only=1
+  shift
+  [ $# -eq 1 ] || fail "usage: new-books.sh --ai FOLDER"
+fi
 [ $# -ge 1 ] && [ $# -le 3 ] || fail "usage: new-books.sh FOLDER [business|personal|demo|auto] [NAME]"
 target=$1
 kind=${2:-auto}
@@ -42,6 +55,56 @@ folder=$(basename "$dir")
 if [ -z "${FAVABOOKS_STARTERS:-}" ]; then
   FAVABOOKS_STARTERS=$(cd "$(dirname "$0")/.." && pwd)
   [ -d "$FAVABOOKS_STARTERS/ledger-starter" ] || FAVABOOKS_STARTERS=/opt/favabooks
+fi
+
+# Replacement text for sed: escape \, | and &.
+sed_text() {
+  printf '%s' "$1" | sed 's/[\\|&]/\\&/g'
+}
+
+# Copy the AI assistant files into the books, with the commands filled in
+# for where they run: in the container, or with this checkout.
+install_ai() {
+  src="$FAVABOOKS_STARTERS/ledger-ai"
+  [ -d "$src" ] || return 0
+  if [ -n "${FAVABOOKS_DOCKER:-}" ]; then
+    container="${FAVABOOKS_CONTAINER:-favabooks}"
+    run="docker exec $container "
+    cmain=$main
+    cdir=$dir
+    note="Favabooks runs in Docker, so these commands run in its container (named \`$container\`; with Podman, write \`podman exec\`). In there this folder is \`$dir\`: use that path in the commands, and your own paths to read and edit files."
+  else
+    cmain=$(cd "$dir" && pwd)/$(basename "$main")
+    cdir=$(cd "$dir" && pwd)
+    if [ -f "$FAVABOOKS_STARTERS/pyproject.toml" ]; then
+      run="uv run --project $FAVABOOKS_STARTERS "
+      note="These commands use the Favabooks source checkout at \`$FAVABOOKS_STARTERS\`."
+    else
+      run=""
+      note="These commands need Favabooks installed (\`fava\` and \`bean-check\` on the PATH)."
+    fi
+  fi
+  case "$cmain" in *" "*) cmain="\"$cmain\"" ;; esac
+  (cd "$src" && find . -type f) | while read -r file; do
+    file=${file#./}
+    if [ -e "$dir/$file" ]; then
+      echo "Kept the existing $dir/$file."
+      continue
+    fi
+    mkdir -p "$(dirname "$dir/$file")"
+    sed -e "s|@RUN@|$(sed_text "$run")|g" \
+      -e "s|@MAIN@|$(sed_text "$cmain")|g" \
+      -e "s|@DIR@|$(sed_text "$cdir")|g" \
+      -e "s|@COMMANDS_NOTE@|$(sed_text "$note")|g" \
+      "$src/$file" >"$dir/$file"
+  done
+}
+
+if [ "$ai_only" = 1 ]; then
+  [ -e "$main" ] || fail "no books at $main"
+  install_ai
+  echo "Added AI assistant instructions to $dir."
+  exit 0
 fi
 
 if [ "$kind" = auto ]; then
@@ -97,6 +160,9 @@ if [ -n "$name" ]; then
   # (No sed -i: it differs between GNU and macOS.)
   sed "s/^option \"title\" \".*\"\$/option \"title\" \"$escaped\"/" "$main" >"$main.tmp"
   mv "$main.tmp" "$main"
+fi
+install_ai
+if [ -n "$name" ]; then
   echo "Created $kind books \"$clean\" in $dir."
 else
   echo "Created $kind books in $dir."

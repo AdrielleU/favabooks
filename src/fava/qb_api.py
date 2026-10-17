@@ -22,6 +22,7 @@ from fava import qb_books  # noqa: F401
 from fava import qb_chart  # noqa: F401
 from fava import qb_close  # noqa: F401
 from fava import qb_connections  # noqa: F401
+from fava import qb_inbox  # noqa: F401
 from fava import qb_prices  # noqa: F401
 from fava import qb_qbo  # noqa: F401
 from fava import qb_reconcile  # noqa: F401
