@@ -1,0 +1,123 @@
+# Upstream watch: is there a Fava or Beancount release Favabooks hasn't
+# taken in, and do the tests still pass on what's coming?
+#   - check: newest Fava release merged? newest PyPI release of every
+#     dependency allowed by pyproject.toml? (contrib/check_upstream.py)
+#   - test: the test suite with the newest releases, our version limits
+#     dropped, and with Beancount, beangulp and beanquery from main.
+#   - report: one issue, "Upstream: new Fava or Beancount to take in",
+#     opened or updated while something needs work, closed once it doesn't.
+# Weekly, and from the Actions tab (Run workflow).
+name: Upstream
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 6 * * 1" # Mondays 06:17 UTC
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    # The schedule also fires in forks of Favabooks; only run it here.
+    if: github.event_name != 'schedule' || github.repository == 'AdrielleU/favabooks'
+    runs-on: ubuntu-latest
+    outputs:
+      action_needed: ${{ steps.check.outputs.action_needed }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0 # to tell which Fava releases are merged
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.14"
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+      - id: check
+        run: >-
+          uv run --no-project --with packaging python contrib/check_upstream.py
+          --report report.md --github-output "$GITHUB_OUTPUT"
+      - run: cat report.md >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: report
+          path: report.md
+
+  test:
+    needs: check
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        deps: ["newest releases", "beancount main"]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.14"
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+      - run: touch src/fava/static/app.js
+      - name: Install the newest versions, ignoring our limits
+        env:
+          MAIN: ${{ matrix.deps == 'beancount main' && '--main' || '' }}
+        run: |
+          uv run --no-project --with packaging python contrib/check_upstream.py --overrides overrides.txt $MAIN
+          cat overrides.txt
+          uv venv .venv
+          # Newer than pyproject's exclude-newer: releases out today too.
+          uv pip install --exclude-newer "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            --overrides overrides.txt -e ".[excel]" pytest
+          uv pip list
+      - run: .venv/bin/python -m pytest
+        env:
+          PATH: ${{ github.workspace }}/.venv/bin:/usr/local/bin:/usr/bin:/bin
+
+  report:
+    needs: [check, test]
+    if: always() && needs.check.result == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: report
+      - name: Open, update or close the issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          NEEDED: ${{ needs.check.outputs.action_needed }}
+          TESTS: ${{ needs.test.result }}
+          RUN: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          title="Upstream: new Fava or Beancount to take in"
+          {
+            cat report.md
+            echo
+            echo "## Tests with what's coming"
+            echo
+            if [ "$TESTS" = success ]; then
+              echo "Pass with the newest releases and with Beancount main."
+            else
+              echo "**Failing** ($TESTS): see the test jobs of $RUN"
+            fi
+            echo
+            echo "_Checked by the Upstream workflow: $RUN_"
+          } > body.md
+          number=$(gh issue list -R "$REPO" --state open --search "in:title \"$title\"" \
+            --json number,title --jq ".[] | select(.title == \"$title\") | .number" | head -1)
+          if [ "$NEEDED" = true ] || [ "$TESTS" != success ]; then
+            if [ -n "$number" ]; then
+              gh issue edit "$number" -R "$REPO" --body-file body.md
+              echo "Updated issue #$number."
+            else
+              gh issue create -R "$REPO" --title "$title" --body-file body.md
+            fi
+          elif [ -n "$number" ]; then
+            gh issue close "$number" -R "$REPO" --comment "Up to date again: $RUN"
+            echo "Closed issue #$number."
+          else
+            echo "Up to date; no issue needed."
+          fi
