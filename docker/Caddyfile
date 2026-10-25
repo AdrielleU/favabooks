@@ -2,10 +2,10 @@
 # username and password, then passes everything through to Favabooks.
 # Fava has no login of its own.
 #
-# login.sh starts it with the login from the .env file next to the compose
-# file (FAVABOOKS_LOGIN_USER and FAVABOOKS_LOGIN_HASH, a bcrypt hash), and
-# makes one there on first start. Without them Caddy doesn't start, so
-# Favabooks is never served without the login.
+# Mounted into the official Caddy image as /etc/caddy/Caddyfile. The login
+# comes from .env (FAVABOOKS_LOGIN_USER and FAVABOOKS_LOGIN_HASH, a bcrypt
+# hash), passed in by the compose file, which refuses to start without
+# them, so Favabooks is never served without the login.
 {
 	admin off
 	auto_https off

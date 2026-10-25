@@ -4,19 +4,15 @@
 # other, not both).
 #
 #   mkdir books
+#   cp .env.example .env    # then set the login (FAVABOOKS_LOGIN_USER, FAVABOOKS_LOGIN_HASH)
 #   docker compose -f docker-compose-login.yml up -d
-#   docker compose -f docker-compose-login.yml logs favabooks-login   # the password
-#   # open http://<this computer>:5000 and sign in as admin
+#   # open http://<this computer>:5000 and sign in
 #
-# On first start the login is made for you: user admin (or
-# FAVABOOKS_LOGIN_USER from .env) and a random password, printed once in
-# the logs. Its hash goes in .env next to this file (FAVABOOKS_LOGIN_HASH);
-# the password itself isn't kept. See docker/login.sh.
-#
-# Change the password: delete the FAVABOOKS_LOGIN_ lines from .env and run
-# "docker compose -f docker-compose-login.yml up -d" again for a new random
-# one (in the logs), or put your own hash in .env, in single quotes:
-#   docker run --rm -it docker.io/library/caddy:2.11.7-alpine caddy hash-password
+# The login is in .env: a username and a bcrypt hash of the password (the
+# password itself is never stored). .env.example has the one command that
+# makes the hash. Without them compose refuses to start, so Favabooks is
+# never served without the login. New password: make a new hash the same
+# way, put it in .env, and run "docker compose -f docker-compose-login.yml up -d".
 #
 # The login is plain HTTP: fine on your home network, but the password
 # crosses it unencrypted. From outside, use a VPN (Tailscale, WireGuard),
@@ -53,7 +49,8 @@ services:
     # chown ./books to 1000 or uncomment this (Linux):
     # user: "${UID:-1000}:${GID:-1000}"
     # Podman with SELinux (Fedora, RHEL): add ":z" to both volumes
-    # (./books:/books:z and .:/setup:z) or they can't be read.
+    # (./books:/books:z and ./docker/Caddyfile:/etc/caddy/Caddyfile:ro,z)
+    # or they can't be read.
     volumes:
       - ./books:/books
     # Not published: only Caddy (below) can reach it.
@@ -64,18 +61,21 @@ services:
     restart: unless-stopped
     depends_on:
       - favabooks
-    # Reads the login from .env, or makes one on first start and saves it
-    # there; then starts Caddy with docker/Caddyfile.
-    entrypoint:
-      [
-        "/bin/sh",
-        "/setup/docker/login.sh",
-        "/setup/.env",
-        "/setup/docker/Caddyfile",
-      ]
+    # The official Caddy image with docker/Caddyfile and the login from .env
+    environment:
+      FAVABOOKS_LOGIN_USER: ${FAVABOOKS_LOGIN_USER:?set FAVABOOKS_LOGIN_USER in .env (see .env.example)}
+      FAVABOOKS_LOGIN_HASH: ${FAVABOOKS_LOGIN_HASH:?set FAVABOOKS_LOGIN_HASH in .env (see .env.example)}
     volumes:
-      # This folder, to read and write .env
-      - .:/setup
+      # The only file it gets: never the books
+      - ./docker/Caddyfile:/etc/caddy/Caddyfile:ro
+    # Read-only, every Linux capability dropped except port 80 (the official
+    # caddy binary asks for it and won't start without); its state is kept
+    # in memory (no certificates, no admin API, nothing worth saving).
+    read_only: true
+    tmpfs: [/data, /config, /tmp]
+    cap_drop: [ALL]
+    cap_add: [NET_BIND_SERVICE]
+    security_opt: ["no-new-privileges:true"]
     ports:
       # Every computer on your network can reach the login page. This
       # computer only: "127.0.0.1:${FAVABOOKS_PORT:-5000}:80".

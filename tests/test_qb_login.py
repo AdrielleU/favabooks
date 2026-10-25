@@ -1,99 +1,51 @@
-"""docker/login.sh: the login in front of Favabooks (Caddy)."""
+"""docker-compose-login.yml: the official Caddy login in front of Favabooks."""
 
 from __future__ import annotations
 
-import os
 import re
-import shutil
-import stat
-import subprocess
 from pathlib import Path
 
-import pytest
-
-LOGIN = Path(__file__).parent.parent / "docker" / "login.sh"
-
-pytestmark = pytest.mark.skipif(
-    shutil.which("sh") is None, reason="needs a POSIX shell"
-)
-
-#: Stands in for caddy: the "hash" holds the password, and "run" prints the
-#: login it was started with.
-FAKE_CADDY = """#!/bin/sh
-if [ "$1" = hash-password ]; then
-  echo "\\$2a\\$14\\$hash-of-$3"
-else
-  echo "caddy $* user=$FAVABOOKS_LOGIN_USER hash=$FAVABOOKS_LOGIN_HASH"
-fi
-"""
+ROOT = Path(__file__).parent.parent
+COMPOSE = (ROOT / "docker-compose-login.yml").read_text()
+CADDYFILE = (ROOT / "docker" / "Caddyfile").read_text()
+EXAMPLE = (ROOT / ".env.example").read_text()
 
 
-def run(tmp_path: Path) -> subprocess.CompletedProcess[str]:
-    bin_dir = tmp_path / "bin"
-    if not bin_dir.exists():
-        bin_dir.mkdir()
-        caddy = bin_dir / "caddy"
-        caddy.write_text(FAKE_CADDY)
-        caddy.chmod(0o755)
-    return subprocess.run(
-        ["sh", str(LOGIN), str(tmp_path / ".env"), "/etc/caddy/Caddyfile"],  # noqa: S607
-        env={
-            **os.environ,
-            "PATH": f"{bin_dir}{os.pathsep}{os.environ['PATH']}",
-        },
-        capture_output=True,
-        text=True,
-        check=False,
+def service(name: str) -> str:
+    """The lines of one service in the compose file."""
+    match = re.search(
+        rf"^  {name}:\n((?:    .*\n|\s*\n)+)", COMPOSE, re.MULTILINE
     )
+    assert match is not None, name
+    return match[1]
 
 
-def test_first_start_makes_a_login(tmp_path: Path) -> None:
-    done = run(tmp_path)
-    assert done.returncode == 0, done.stderr
-    password = re.search(r"Password: (\S+)", done.stdout)
-    assert password is not None
-    assert re.fullmatch(r"[A-Za-z0-9]{20}", password[1])
-    assert "Username: admin" in done.stdout
-    env = tmp_path / ".env"
-    assert env.read_text() == (
-        "FAVABOOKS_LOGIN_USER=admin\n"
-        f"FAVABOOKS_LOGIN_HASH='$2a$14$hash-of-{password[1]}'\n"
+def test_login_comes_from_env_and_is_required() -> None:
+    login = service("favabooks-login")
+    for name in ("FAVABOOKS_LOGIN_USER", "FAVABOOKS_LOGIN_HASH"):
+        assert f"{name}: ${{{name}:?" in login
+        assert f"{{${name}}}" in CADDYFILE
+        assert re.search(rf"^{name}=", EXAMPLE, re.MULTILINE)
+
+
+def test_caddy_is_official_and_gets_only_its_caddyfile() -> None:
+    login = service("favabooks-login")
+    assert "image: docker.io/library/caddy:" in login
+    assert "entrypoint" not in login
+    mounts = re.findall(
+        r"^      - (\S+)$", login.split("volumes:")[1], re.MULTILINE
     )
-    assert stat.S_IMODE(env.stat().st_mode) == 0o600
-    assert done.stdout.splitlines()[-1] == (
-        "caddy run --config /etc/caddy/Caddyfile --adapter caddyfile "
-        f"user=admin hash=$2a$14$hash-of-{password[1]}"
-    )
-
-    # Started again: the same login, nothing printed.
-    again = run(tmp_path)
-    assert "Password" not in again.stdout
-    assert again.stdout.splitlines() == done.stdout.splitlines()[-1:]
+    assert mounts[0] == "./docker/Caddyfile:/etc/caddy/Caddyfile:ro"
+    assert "/books" not in login
 
 
-def test_keeps_the_rest_of_env(tmp_path: Path) -> None:
-    env = tmp_path / ".env"
-    env.write_text('FAVABOOKS_PORT=17201\nFAVABOOKS_LOGIN_USER="owner"\n')
-    done = run(tmp_path)
-    assert "Username: owner" in done.stdout
-    lines = env.read_text().splitlines()
-    assert lines[:2] == ["FAVABOOKS_PORT=17201", "FAVABOOKS_LOGIN_USER=owner"]
-    assert lines[2].startswith("FAVABOOKS_LOGIN_HASH='$2a$14$hash-of-")
+def test_caddy_is_locked_down() -> None:
+    login = service("favabooks-login")
+    assert "read_only: true" in login
+    assert "cap_drop: [ALL]" in login
+    assert "cap_add: [NET_BIND_SERVICE]" in login
+    assert '"no-new-privileges:true"' in login
 
 
-def test_empty_env(tmp_path: Path) -> None:
-    (tmp_path / ".env").write_text("")
-    done = run(tmp_path)
-    assert "Username: admin" in done.stdout
-
-
-def test_existing_login(tmp_path: Path) -> None:
-    env = tmp_path / ".env"
-    text = "FAVABOOKS_LOGIN_USER=me\nFAVABOOKS_LOGIN_HASH='$2a$14$mine'\n"
-    env.write_text(text)
-    done = run(tmp_path)
-    assert done.stdout == (
-        "caddy run --config /etc/caddy/Caddyfile --adapter caddyfile "
-        "user=me hash=$2a$14$mine\n"
-    )
-    assert env.read_text() == text
+def test_favabooks_itself_is_not_published() -> None:
+    assert "ports:" not in service("favabooks")
